@@ -1,0 +1,41 @@
+# ═════════════════════════════════════════════════════════════════════════════
+# 崩铁抽卡分析平台 · 忽略清单
+#
+# 这个仓库是**公开**的，所以下面任何一项都不许入库：
+#   · data/                —— 你的抽卡记录、UID、昵称、补填历史（隐私）
+#   · assets/avatar|light_cone|index —— 米哈游的美术素材与解包索引（版权）
+#   · .port / .server.log  —— 本机运行时产物
+# ═════════════════════════════════════════════════════════════════════════════
+
+# ── 1. 账号数据（隐私）──────────────────────────────────────────────────────
+# data/ 里全部是你自己的东西：records.json 带 UID 与逐条抽卡记录，
+# meta.json 带 UID / 昵称，account.json 带截图补录的历史。
+data/*
+!data/.gitkeep
+
+# ── 2. 游戏素材（版权属于米哈游，不放仓库）──────────────────────────────────
+# 这三块都能由平台自己下载，不需要随仓库分发：
+#   索引  ← https://raw.githubusercontent.com/Mar-7th/StarRailRes/master/index_min/cn/*.json
+#   图标  ← https://raw.githubusercontent.com/Mar-7th/StarRailRes/master/icon/{avatar,light_cone}/*.png
+# 触发方式：导入抽卡记录时会自动补齐；也可以点「数据管理 → 更新角色头像」。
+assets/avatar/
+assets/light_cone/
+assets/index/
+
+# ── 3. 运行时产物 ───────────────────────────────────────────────────────────
+.port
+.server.log
+*.log
+
+# ── 4. 系统 / 编辑器 ────────────────────────────────────────────────────────
+.DS_Store
+._*
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# ── 5. 依赖（本项目零 npm 依赖，这几条只是以防万一）─────────────────────────
+node_modules/
+npm-debug.log*
+yarn-error.log*

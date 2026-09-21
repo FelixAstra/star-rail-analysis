@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>崩铁抽卡分析工作台</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>✦</text></svg>">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="app"></div>
+
+<!-- Vue 3（本地 vendor，无构建、无 npm 依赖） -->
+<script src="vendor/vue.global.prod.js"></script>
+
+<!-- 组件：先共用小组件，再各页面，最后是外壳（按依赖顺序加载） -->
+<script src="match.js"></script>
+<script src="components/shared.js"></script>
+<script src="components/analysis.js"></script>
+<script src="components/roles.js"></script>
+<script src="components/help.js"></script>
+<script src="components/importer.js"></script>
+<script src="components/datamanage.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
