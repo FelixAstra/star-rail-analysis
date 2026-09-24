@@ -206,7 +206,7 @@
         </div>
         <div v-if="job" class="prog">
           <div v-for="(l, i) in job.logs" :key="i"><span class="t">{{ l.t }}</span><span :class="{ er: l.phase === 'error', okc: l.phase === 'done' }">{{ l.msg }}</span></div>
-          <div v-if="job.running" style="color:#8f9fba">…进行中（抓取是逐页翻的，记录多时约 1~3 分钟，请不要关窗口）</div>
+          <div v-if="job.running" style="color:var(--tx3)">…进行中（抓取是逐页翻的，记录多时约 1~3 分钟，请不要关窗口）</div>
         </div>
         <div v-if="job && job.result" class="note2">
           <b>本次结果：</b>抓到 <b>{{ job.result.merged.total }}</b> 条中的新增 <b>{{ job.result.merged.added }}</b> 条（重复 {{ job.result.merged.dup }} 条）；

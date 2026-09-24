@@ -16,6 +16,9 @@ const { analyze, loadIndex } = require('../core/analyze.js');
 const store = require('./store.js');
 const icons = require('./icons.js');
 const external = require('../core/external.js');
+const divination = require('../core/divination.js');
+const zeri = require('../core/zeri.js');
+const banner = require('../core/banner.js');
 const { fetchAll } = require('./fetch.js');
 
 const ROOT = path.join(__dirname, '..');
@@ -109,8 +112,44 @@ const ROUTES = {
       job: job ? { id: job.id, running: job.running, phase: job.phase } : null,
     });
   },
-  'GET /api/meta': (req, res) => sendJSON(res, store.readMeta()),
-  'POST /api/meta': async (req, res) => {
+  // 八卦占卜：走的是同一份分析结果（已垫抽数从 poolBounds 里取），所以口径与「抽卡分析」页永远一致
+  'GET /api/divination': (req, res) => {
+    const q = url.parse(req.url, true).query;
+    const a = getAnalysis(q.fresh === '1');
+    const gt = String(q.gt || '11');
+    const cur = (q.cur === undefined || q.cur === '') ? undefined : Number(q.cur);
+    const lines = (q.lines && /^[6789](,[6789]){5}$/.test(q.lines)) ? q.lines.split(',').map(Number) : undefined;
+    // method：起卦法（coin 三枚铜钱 / yarrow 大衍揲蓍）—— 白名单校验，不接受任意字符串
+    // upMode：保底状态（small 小保底 / big 大保底）—— 决定「出金即 UP」的概率
+    const method = divination.METHODS[q.method] ? q.method : 'coin';
+    const upMode = q.upMode === 'big' ? 'big' : 'small';
+    try {
+      sendJSON(res, divination.cast({ gt, analysis: a, cur, lines, method, upMode }));
+    } catch (e) {
+      sendJSON(res, { ok: false, error: String(e && e.message || e) });
+    }
+  },
+  // 择时（吉时）：与摇卦无关，页面一进来就要能看到，所以单独一路
+  // ?date=YYYY-MM-DD 可选，缺省当天；?server=1 附上本机时间（页面显示「此刻」在哪一档）
+  'GET /api/zeri': (req, res) => {
+    const q = url.parse(req.url, true).query;
+    const d = /^\d{4}-\d{2}-\d{2}$/.test(String(q.date || '')) ? String(q.date) : null;
+    const now = new Date();
+    const day = d || [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'),
+      String(now.getDate()).padStart(2, '0')].join('-');
+    try {
+      const r = zeri.zeri(day);
+      const hh = now.getHours();
+      // 此刻落在哪个时辰：0 点与 23 点都算子时，见 core/zeri.js 的口径说明
+      const curZhi = zeri.HOURS[hh === 23 ? 0 : Math.floor((hh + 1) / 2)][0];
+      sendJSON(res, Object.assign({ ok: true }, r, {
+        now: d ? null : { at: now.toISOString(), hh, zhi: curZhi },
+      }));
+    } catch (e) {
+      sendJSON(res, { ok: false, error: String(e && e.message || e) });
+    }
+  },
+  'GET /api/meta': (req, res) => sendJSON(res, store.readMeta()),  'POST /api/meta': async (req, res) => {
     const body = await readBody(req);
     const next = store.writeMeta(body);
     // 补填值变了要立刻重建分析结果：缓存 key 虽然带了 meta.json 的 mtime，
@@ -225,6 +264,43 @@ const ROUTES = {
       icons: { checked: ic.checked, downloaded: ic.downloaded.length, failed: ic.failed, skipped: ic.skipped },
     });
   },
+
+  // ── 卡池日历 & 剩余期内择日 ──────────────────────────────────────────────
+  // ⚠️ 卡池日历是**全平台唯一的联网点**（第三方源，非官方接口），页面其余部分完全离线。
+  //    ?force=1 绕过本地缓存重拉；取不到时 core/banner.js 自动降级到内置表。
+  'GET /api/banner': async (req, res) => {
+    const q = url.parse(req.url, true).query;
+    try {
+      const recs = store.readStore().records || [];
+      const r = await banner.calendar({ records: recs, force: q.force === '1' });
+      // 顺带给出 gacha_id → 期次（含当期 UP 名单）的映射 —— 这是 memory 里记的
+      // 「UP 推定是循环论证」那个待决项的正解：按时间区间把每个 gid 落到具体一期上，
+      // 不再靠「抽到的东西」反推 UP，再用 UP 判有没有歪。
+      // ⚠️ 必须传合并后的 terms，不能传 list —— 数据源把角色池与光锥池拆成两条并列 banner，
+      //    用 list 匹配只会命中第一条，UP 光锥会恒为空（踩过）。
+      const map = banner.mapGachaIds(r.terms, recs);
+      sendJSON(res, Object.assign({ ok: true }, r, { map }));
+    } catch (e) {
+      sendJSON(res, { ok: false, error: String(e && e.message || e) });
+    }
+  },
+
+  // 剩余卡池期内的择日榜（日家择吉）。?from=&to=YYYY-MM-DD，缺省 from = 今天。
+  // 页面只传 to（= 当期卡池结束那天），保证不会越界去推荐下一期。
+  'GET /api/zeri/range': (req, res) => {
+    const q = url.parse(req.url, true).query;
+    const now = new Date();
+    const today = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'),
+      String(now.getDate()).padStart(2, '0')].join('-');
+    const isD = s => /^\d{4}-\d{2}-\d{2}$/.test(String(s || ''));
+    const from = isD(q.from) ? String(q.from) : today;
+    const to = isD(q.to) ? String(q.to) : from;
+    try {
+      sendJSON(res, Object.assign({ ok: true, today }, zeri.range(from, to)));
+    } catch (e) {
+      sendJSON(res, { ok: false, error: String(e && e.message || e) });
+    }
+  },
 };
 
 // ── 静态文件 ────────────────────────────────────────────────────────────────
@@ -270,4 +346,12 @@ function listen(port, tries) {
     fs.writeFileSync(path.join(ROOT, '.port'), String(port));
   });
 }
+
+// ── 兜底：单个请求出错不该把整个服务带走 ────────────────────────────────────
+// ⚠️ 这是个常驻的本地服务，Node ≥15 里**未处理的 Promise rejection 会直接 FATAL 进程**
+//    （踩过：一个后台预热任务写错，/api/status 一访问整个 server 就没了，
+//     浏览器侧表现成「刷新后白屏、所有资源都加载不出来」）。这里只记日志、不退出。
+process.on('uncaughtException', e => console.error('[未捕获异常] 服务继续运行：' + (e && e.stack || e)));
+process.on('unhandledRejection', e => console.error('[未处理 rejection] 服务继续运行：' + (e && e.stack || e)));
+
 listen(PORT_START, 12);

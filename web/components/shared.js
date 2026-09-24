@@ -23,7 +23,7 @@
   W.ItemCard = {
     props: { it: Object, showPulls: { type: Boolean, default: true } },
     computed: {
-      ring() { return { '5': '#e0a44a', '4': '#a06fd0', '3': '#5b8dd9' }[this.it.rank]; },
+      ring() { return { '5': 'var(--ring-c5)', '4': 'var(--ring-c4)', '3': 'var(--ring-c3)' }[this.it.rank]; },
     },
     template: `
       <div class="c" :class="'ar' + it.rank">

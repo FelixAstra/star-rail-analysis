@@ -1,0 +1,324 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   主题 token 层
+   ───────────────────────────────────────────────────────────────────────────
+   四套主题：vivid（炫彩，取自 logo）· light（原来的浅色）· dark · glass（流体玻璃）
+   切换方式：<html data-theme="vivid|light|dark|glass">；默认 vivid。
+
+   ⚠️ 规矩：styles.css 与各组件里**不许再出现硬编码色值**（稀有度环的三段渐变除外，
+      那是游戏语义色，四套主题共用）。所有颜色一律走这里的 token。
+
+   ⚠️ 为什么单独一个文件：styles.css 有 800+ 行、主题化时要整体体检；
+      把「值」和「结构」分开，改配色不用碰布局，回归风险小得多。
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. 结构性 token（四套主题都必须给全，缺一个就会在某个主题下露出白底）── */
+:root{
+  /* 面 */
+  --bg:#070a18;            /* 页面底 */
+  --bgfx:radial-gradient(120% 90% at 18% -10%,#1b2a6e 0%,rgba(27,42,110,0) 55%),
+         radial-gradient(90% 70% at 92% 8%,#3a1570 0%,rgba(58,21,112,0) 60%),
+         linear-gradient(180deg,#070a18 0%,#080c1e 100%);
+  --card:#0e1430;          /* 卡片 / 面板面 */
+  --card2:#121a3c;         /* 次级面 */
+  --sunk:#182146;          /* 下沉面（胶囊 / 代码块）*/
+  --line:#28336a;          /* 常规描边 */
+  --line2:#1e2750;         /* 更弱的描边 */
+  --dash:#2a366f;
+  --pl-dash:rgba(120,150,255,.34);          /* 虚线占位（**当前景笔画用**，不能和 --line 共用 —— 玻璃主题的
+                              --line 是半透明白描边，拿去画线会白底白线看不见）*/
+  --side-bg:#0a0f26;       /* 侧栏底 */
+  --side-line:#26306a;
+  --hover:#161f45;         /* 悬停底 */
+  --sel:#20194a;           /* 选中底 */
+  --sel-bg:#1a1440;        /* 紫色调面板 */
+  --sel-line:#3a2b7a;
+  --sel-strong:#5b46b8;
+  --img-ph:#182146;        /* 图片占位底 */
+  --th-bg:#141c42;         /* 表头底 */
+
+  /* 四级文字 */
+  --tx:#eaf1ff; --tx2:#a8b8e2; --tx3:#7583ae; --tx4:#4e5b82;
+
+  /* 强调色 */
+  --purple:#bd47ff; --purple-d:#d488ff;
+  --gold:#ffc861;   --gold-d:#ffd98f;
+  --cyan:#58f1ee;   --green:#4ee6a0; --green-d:#7bf0bd;
+  --red:#ff5f6d;    --red-d:#ff96a0;
+  --blue:#4a8cff;
+
+  /* 状态胶囊（底 / 描边；文字色由各自 -tx 给）*/
+  --ok-bg:rgba(78,230,160,.14);   --ok-line:rgba(78,230,160,.34);  --ok-tx:#7bf0bd;
+  --off-bg:rgba(255,95,109,.14);  --off-line:rgba(255,95,109,.34); --off-tx:#ff96a0;
+  --std-bg:rgba(255,255,255,.07); --std-line:rgba(160,180,255,.22);--std-tx:#a8b8e2;
+  --ld-bg:rgba(189,71,255,.16);   --ld-line:rgba(189,71,255,.34);  --ld-tx:#e0a8ff;
+  --warn-bg:rgba(255,200,97,.14); --warn-line:rgba(255,200,97,.34);--warn-tx:#ffd98f;
+  --info-bg:rgba(255,255,255,.06);--info-line:rgba(160,180,255,.2);--info-tx:#a8b8e2;
+  /* 蓝色档位标（超出本期 / 待定）与金底文字 */
+  --blue-bg:rgba(74,140,255,.16); --blue-tx:#8fb6ff;
+  --gold-soft:rgba(255,200,97,.28); --on-gold:#1a1400;
+  --term-er:#ff9b8a; --term-ok:#7ee0a8;
+  /* 占卜页小胶囊 */
+  --dz-pill:rgba(20,30,72,.88); --dz-pill-line:#2b3a7e; --dz-pill-tx:#c3d0f5;
+  --dz-coin-hole:rgba(12,18,48,.55); --dz-coin-b1:#e8f0ff; --dz-coin-b2:#a9bdf0; --dz-coin-b3:#7c92d8;
+
+  /* 特殊块 */
+  --code-bg:rgba(88,241,238,.10); --code-tx:#8ff2ef;
+  --term-bg:#050814; --term-tx:#b6e8ff;
+  --on-accent:#0b0f24;            /* 彩色底上的文字 */
+
+  /* 阴影 */
+  --sh1:0 1px 3px rgba(0,0,0,.45);
+  --sh2:0 2px 8px rgba(0,0,0,.5);
+  --sh3:0 0 0 1px rgba(120,150,255,.14);
+  --sh-hair:0 1px 3px rgba(0,0,0,.5);
+  --sh-soft:rgba(0,0,0,.42);
+
+  /* 稀有度环（**游戏语义色**，四套主题共用，只在中段高光上按主题微调亮度）*/
+  --ring-5:conic-gradient(from 210deg,#e8b95f,#fdf3d8,#d9a03c,#fdf3d8,#e8b95f);
+  /* 稀有度环的基准色（组件用 --ring 变量控制圈底）*/
+  --ring-c5:#ffc861; --ring-c4:#bd47ff; --ring-c3:#4a8cff;
+  --ring-4:conic-gradient(from 210deg,#b48ce0,#efe4fb,#9a6fd4,#efe4fb,#b48ce0);
+  --ring-3:conic-gradient(from 210deg,#7aa5e0,#e4eefb,#5b8dd9,#e4eefb,#7aa5e0);
+  /* ⚠️ 除了上面的稀有度环，还有**两处故意不跟随主题**的色值，别当漏网之鱼去「修」：
+       ① 右下角回顶按钮 .fab 的星穹列车图标（app.js 里那 6 个 #5b4318 / #fdf4e2）——
+          它站在 --ring-5 的金色环上，改成主题色就没有金底深棕的对比了；
+       ② 切换器四个色板圆点 .sw-*.thm-sw（styles.css 末尾）—— 必须**同时**展示四套配色，
+          不能跟随当前主题，否则四个圆点会长得一模一样。
+     另外 styles.css 里还剩 4 处中性投影（rgba(0,0,0,.18~.28) 与 .fab 的冷灰影）：
+     纯阴影，四套主题下都成立，没有 token 化的必要。 */
+
+  /* logo 的光晕（紧贴版 PNG 里没有柔光，光晕由这里给，才能随主题变）*/
+  --logo-glow:drop-shadow(0 0 10px rgba(120,90,255,.6)) drop-shadow(0 0 3px rgba(88,241,238,.45));
+  --brand-glow:drop-shadow(0 0 9px rgba(120,90,255,.35));
+
+  /* 玻璃拟态所需的模糊量（非 glass 主题为 0，等于关掉）*/
+  --blur:0px;
+
+  /* ── 占卜仪盘（罗盘 + 龟腹甲 + 铜钱）──────────────────────────────────── */
+  --dz-altar:linear-gradient(160deg,#101a48 0%,#0a1130 52%,#0c1440 100%);
+  --dz-altar-line:#2b3a7e;
+  --dz-altar-in:inset 0 1px 0 rgba(140,170,255,.18);
+  --dz-plate-1:#0f1840;  --dz-plate-2:#141f52;
+  --dz-plate-l1:#39498f; --dz-plate-l2:#31407e; --dz-plate-l3:#2a376f; --dz-plate-div:#33438180;
+  --dz-gua-tx:#9fb4ee;   --dz-gua-idx:#6d7fbe;
+  --dz-tai-1:#e8eeff;    --dz-tai-2:#141c46;  --dz-tai-ring:#4a5ca8;
+  --dz-shell-1:#8fa6e8;  --dz-shell-2:#5d74c4; --dz-shell-3:#4055a0; --dz-shell-4:#2f4184;
+  --dz-shell-ring:#7d92dc; --dz-shell-seam:#93a8ea; --dz-shell-ento:#4a5fa8;
+  --dz-shell-edge:#8fa6e8; --dz-shell-hi:#dfe8ff;
+  --dz-zuo:#1a2456;      --dz-zhao:#ffb04a;
+  --dz-coin-1:#e8f0ff;   --dz-coin-2:#a9bdf0; --dz-coin-3:#7c92d8;
+  --dz-coin-tx:#2a3a72;  --dz-coin-ring:rgba(180,200,255,.55);
+  --dz-coin-sh1:rgba(220,235,255,.7); --dz-coin-sh2:rgba(30,45,110,.3);
+}
+
+/* ── 2. 炫彩：主色直接取自 logo（深空靛蓝底 + 电光蓝 → 紫 → 青，辅以车头暖光）── */
+/* 上面 :root 就是 vivid，这里只补一句说明；若要单独微调写在这个块里 */
+[data-theme="vivid"]{}
+
+/* ── 3. Light：改造前的原始配色，做主题 token 化时逐值对齐，视觉零变化 ────── */
+[data-theme="light"]{
+  --bg:#f4f6fa;
+  --bgfx:linear-gradient(180deg,rgba(255,255,255,0) 0%,rgba(255,255,255,0) 100%);
+  --card:#fff; --card2:#fafbfe; --sunk:#eef1f7;
+  --line:#e6e9f0; --line2:#f1f3f8; --dash:#e6e9f0; --pl-dash:rgba(20,30,60,.26); --side-bg:#fff; --side-line:#e6e9f0;
+  --hover:#f7f9fd; --sel:#f3effc; --sel-bg:#f7f5fe; --sel-line:#e7dffa; --sel-strong:#ddd0f5;
+  --img-ph:#eef1f7; --th-bg:#fafbfe;
+  --tx:#1f2430; --tx2:#5b6478; --tx3:#8b94a8; --tx4:#b3bbca;
+  --purple:#7a5bd0; --purple-d:#5b3fb8;
+  --gold:#c8862a;   --gold-d:#a8721a;
+  --cyan:#0d8a9c;   --green:#1a9e5c; --green-d:#177a48;
+  --red:#d9484a;    --red-d:#b8452f; --blue:#3a6ea5;
+  --ok-bg:#e2f3ea;   --ok-line:#c7e6d4;  --ok-tx:#177a48;
+  --ring-c5:#e0a44a; --ring-c4:#a06fd0; --ring-c3:#5b8dd9;
+  --off-bg:#fde9e4;  --off-line:#f5d4ca; --off-tx:#b8452f;
+  --std-bg:#eef1f7;  --std-line:#dfe4ee; --std-tx:#6b7488;
+  --ld-bg:#eceafd;   --ld-line:#ded5f4;  --ld-tx:#4b3fa8;
+  --warn-bg:#fdf3dc; --warn-line:#efd9a8;--warn-tx:#8a5a12;
+  --info-bg:#eef1f7; --info-line:#dfe4ee;--info-tx:#6b7488;
+  --blue-bg:#eaf2fb; --blue-tx:#3a6ea5;
+  --gold-soft:#f2ddb0; --on-gold:#3d2c07;
+  --term-er:#ff9b8a; --term-ok:#7ee0a8;
+  --dz-pill:rgba(255,253,246,.88); --dz-pill-line:#e2d6b8; --dz-pill-tx:#7a6636;
+  --dz-coin-hole:#f2ecdc; --dz-coin-b1:#f3dda6; --dz-coin-b2:#ddbe74; --dz-coin-b3:#b98f47;
+  --code-bg:#eef1f7; --code-tx:#1f2430;
+  --term-bg:#0f1626; --term-tx:#c9d4e8;
+  --on-accent:#fff;
+  --sh1:0 1px 3px rgba(20,30,60,.08);
+  --sh2:0 2px 10px rgba(60,50,20,.07);
+  --sh3:0 0 0 1px rgba(20,30,60,.06);
+  --sh-hair:0 1px 3px rgba(20,30,60,.08);
+  --sh-soft:rgba(70,56,20,.16);
+  --logo-glow:drop-shadow(0 2px 6px rgba(20,30,60,.22));
+  --brand-glow:none;
+  --dz-altar:radial-gradient(120% 100% at 30% 12%,#f7f3e8 0%,#efe8d6 46%,#e2d8bd 100%);
+  --dz-altar-line:#ddd2b6;
+  --dz-altar-in:inset 0 1px 0 #fffdf7;
+  --dz-plate-1:#fbf7ee;  --dz-plate-2:#f3ecdc;
+  --dz-plate-l1:#dbcbaa; --dz-plate-l2:#d6c5a3; --dz-plate-l3:#ded0b2; --dz-plate-div:#e0d3b8;
+  --dz-gua-tx:#a08e6a;   --dz-gua-idx:#b8a988;
+  --dz-tai-1:#f7f4ec;    --dz-tai-2:#3a3730;  --dz-tai-ring:#c9bda2;
+  --dz-shell-1:#f8f0da;  --dz-shell-2:#e6d3a8; --dz-shell-3:#c9ab74; --dz-shell-4:#a98c56;
+  --dz-shell-ring:#7d6839; --dz-shell-seam:#8a7443; --dz-shell-ento:#e8d8b2;
+  --dz-shell-edge:#6b5525; --dz-shell-hi:#fffbf1;
+  --dz-zuo:#5c4a1e;      --dz-zhao:#8a4a12;
+  --dz-coin-1:#f6e2ab;   --dz-coin-2:#e6c67c; --dz-coin-3:#c39a52;
+  --dz-coin-tx:#7d5a1d;  --dz-coin-ring:rgba(120,92,30,.45);
+  --dz-coin-sh1:rgba(255,248,220,.6); --dz-coin-sh2:rgba(90,68,20,.22);
+}
+
+/* ── 4. Dark：中性冷灰，低对比、不刺眼；强调色提亮一档保证可读 ─────────────── */
+[data-theme="dark"]{
+  --bg:#0f1320;
+  --bgfx:linear-gradient(180deg,#0f1320 0%,#111629 100%);
+  --card:#171c2c; --card2:#1b2132; --sunk:#212838;
+  --line:#2a3145; --line2:#232a3d; --dash:#39435e; --pl-dash:rgba(200,212,240,.3); --side-bg:#141926; --side-line:#252c40;
+  --hover:#1e2536; --sel:#252040; --sel-bg:#211c38; --sel-line:#382f5e; --sel-strong:#4a3d78;
+  --img-ph:#212838; --th-bg:#1b2132;
+  --tx:#e9edf6; --tx2:#a9b3c8; --tx3:#7a849b; --tx4:#59617a;
+  --purple:#a98cf0; --purple-d:#c3adff;
+  --gold:#e0a94e;   --gold-d:#f0c377;
+  --cyan:#4fc8d8;   --green:#3fc98a; --green-d:#6fe0ab;
+  --red:#f27273;    --red-d:#ff9a9a; --blue:#6fa3e0;
+  --ok-bg:rgba(63,201,138,.15);    --ok-line:rgba(63,201,138,.34);  --ok-tx:#6fe0ab;
+  --ring-c5:#f0c877; --ring-c4:#b98cf0; --ring-c3:#7fb0f0;
+  --off-bg:rgba(242,114,115,.15);  --off-line:rgba(242,114,115,.34);--off-tx:#ff9a9a;
+  --std-bg:rgba(255,255,255,.07);  --std-line:rgba(255,255,255,.14);--std-tx:#a9b3c8;
+  --ld-bg:rgba(169,140,240,.17);   --ld-line:rgba(169,140,240,.36); --ld-tx:#c9b6ff;
+  --warn-bg:rgba(224,169,78,.14);  --warn-line:rgba(224,169,78,.34);--warn-tx:#f0c377;
+  --info-bg:rgba(255,255,255,.06); --info-line:rgba(255,255,255,.12);--info-tx:#a9b3c8;
+  --blue-bg:rgba(111,163,224,.16); --blue-tx:#8fb6e8;
+  --gold-soft:rgba(224,169,78,.26); --on-gold:#241b02;
+  --term-er:#ff9b8a; --term-ok:#7ee0a8;
+  --dz-pill:rgba(36,30,18,.9); --dz-pill-line:#4a3f22; --dz-pill-tx:#c7b48a;
+  --dz-coin-hole:#2b2614; --dz-coin-b1:#e8cd8c; --dz-coin-b2:#cba95c; --dz-coin-b3:#9a7a38;
+  --code-bg:rgba(255,255,255,.08); --code-tx:#cfd8e8;
+  --term-bg:#0a0e18; --term-tx:#c2d2e8;
+  --on-accent:#fff;
+  --sh1:0 1px 3px rgba(0,0,0,.35);
+  --sh2:0 4px 14px rgba(0,0,0,.4);
+  --sh3:0 0 0 1px rgba(255,255,255,.05);
+  --sh-hair:0 1px 3px rgba(0,0,0,.42);
+  --sh-soft:rgba(0,0,0,.38);
+  --logo-glow:drop-shadow(0 0 10px rgba(90,140,255,.5));
+  --brand-glow:drop-shadow(0 0 8px rgba(90,140,255,.28));
+  --dz-altar:linear-gradient(160deg,#26210f 0%,#1d1a0e 52%,#241f10 100%);
+  --dz-altar-line:#4a3f22;
+  --dz-altar-in:inset 0 1px 0 rgba(255,240,200,.12);
+  --dz-plate-1:#251f10;  --dz-plate-2:#2d2614;
+  --dz-plate-l1:#5c4d28; --dz-plate-l2:#524426; --dz-plate-l3:#483b20; --dz-plate-div:#5c4d2880;
+  --dz-gua-tx:#bda87a;   --dz-gua-idx:#8d7c52;
+  --dz-tai-1:#efe8d4;    --dz-tai-2:#2b2515;  --dz-tai-ring:#6d5c32;
+  --dz-shell-1:#e0cfa4;  --dz-shell-2:#c2a970; --dz-shell-3:#9d854c; --dz-shell-4:#7d6738;
+  --dz-shell-ring:#8a7443; --dz-shell-seam:#a08a52; --dz-shell-ento:#c9b483;
+  --dz-shell-edge:#8a7443; --dz-shell-hi:#fff4d8;
+  --dz-zuo:#3a2d10;      --dz-zhao:#d87a20;
+  --dz-coin-1:#e8cd8c;   --dz-coin-2:#cba95c; --dz-coin-3:#9a7a38;
+  --dz-coin-tx:#4a3410;  --dz-coin-ring:rgba(220,190,120,.4);
+  --dz-coin-sh1:rgba(255,244,210,.5); --dz-coin-sh2:rgba(60,44,10,.35);
+}
+
+/* ── 5. 玻璃：半透明面板 + 背景彩色流体；靠 blur 与高光描边出「玻璃」感 ───── */
+[data-theme="glass"]{
+  --bg:#e9edf6;
+  /* 流体色团：紫 / 青 / 蜜桃 / 天蓝，缓慢漂移（见文件末的 @keyframes）*/
+  --bgfx:radial-gradient(58% 48% at 12% 8%,rgba(150,120,255,.42) 0%,rgba(150,120,255,0) 62%),
+         radial-gradient(52% 44% at 88% 4%,rgba(88,200,255,.40) 0%,rgba(88,200,255,0) 60%),
+         radial-gradient(60% 52% at 78% 92%,rgba(255,160,190,.34) 0%,rgba(255,160,190,0) 62%),
+         radial-gradient(50% 46% at 22% 96%,rgba(120,235,215,.36) 0%,rgba(120,235,215,0) 60%),
+         linear-gradient(180deg,#eef1f9 0%,#e6ebf6 100%);
+  --card:rgba(255,255,255,.55); --card2:rgba(255,255,255,.42); --sunk:rgba(255,255,255,.5);
+  --line:rgba(255,255,255,.75); --line2:rgba(255,255,255,.5);
+  --dash:rgba(21,29,51,.3);
+  --pl-dash:rgba(60,80,140,.36);
+  --side-bg:rgba(255,255,255,.38); --side-line:rgba(255,255,255,.7);
+  --hover:rgba(255,255,255,.62); --sel:rgba(255,255,255,.62);
+  --sel-bg:rgba(255,255,255,.5); --sel-line:rgba(255,255,255,.85); --sel-strong:rgba(150,120,255,.45);
+  --img-ph:rgba(255,255,255,.5); --th-bg:rgba(255,255,255,.4);
+  --tx:#151d33; --tx2:#48536e; --tx3:#6f7a93; --tx4:#9aa3b6;
+  --purple:#6b4cc9; --purple-d:#573bb0;
+  --gold:#a8721a;   --gold-d:#8a5a12;
+  --cyan:#0b7f92;   --green:#12864e; --green-d:#0e6b3e;
+  --red:#c0393b;    --red-d:#a82e30; --blue:#2f6bb0;
+  --ok-bg:rgba(30,180,120,.18);   --ok-line:rgba(30,180,120,.3);  --ok-tx:#0e6b3e;
+  --ring-c5:#d99b3c; --ring-c4:#9660c8; --ring-c3:#4f83cc;
+  --off-bg:rgba(220,80,80,.16);   --off-line:rgba(220,80,80,.28); --off-tx:#a82e30;
+  --std-bg:rgba(255,255,255,.62); --std-line:rgba(255,255,255,.9);--std-tx:#535e78;
+  --ld-bg:rgba(140,110,240,.18);  --ld-line:rgba(140,110,240,.3); --ld-tx:#4b3fa8;
+  --warn-bg:rgba(230,170,50,.18); --warn-line:rgba(230,170,50,.3);--warn-tx:#7d5406;
+  --info-bg:rgba(255,255,255,.6); --info-line:rgba(255,255,255,.9);--info-tx:#535e78;
+  --blue-bg:rgba(70,140,220,.16); --blue-tx:#2f6bb0;
+  --gold-soft:rgba(230,180,90,.3); --on-gold:#3d2c07;
+  --term-er:#ff9b8a; --term-ok:#7ee0a8;
+  --dz-pill:rgba(255,255,255,.78); --dz-pill-line:rgba(255,255,255,.9); --dz-pill-tx:#5a6788;
+  --dz-coin-hole:rgba(255,255,255,.55); --dz-coin-b1:#eef4ff; --dz-coin-b2:#d2dcf0; --dz-coin-b3:#aab8d4;
+  --code-bg:rgba(255,255,255,.7); --code-tx:#1b2440;
+  --term-bg:rgba(16,22,40,.9); --term-tx:#cfe4ff;
+  --on-accent:#fff;
+  --sh1:0 2px 10px rgba(50,70,130,.12);
+  --sh2:0 10px 34px rgba(50,70,130,.16);
+  --sh3:inset 0 1px 0 rgba(255,255,255,.9);
+  --sh-hair:0 1px 3px rgba(50,70,130,.14);
+  --sh-soft:rgba(60,80,140,.18);
+  --blur:22px;
+  --logo-glow:drop-shadow(0 4px 14px rgba(60,80,160,.35));
+  --brand-glow:none;
+  --dz-altar:linear-gradient(160deg,rgba(255,255,255,.62) 0%,rgba(240,246,255,.46) 52%,rgba(232,240,255,.55) 100%);
+  --dz-altar-line:rgba(255,255,255,.85);
+  --dz-altar-in:inset 0 1px 0 rgba(255,255,255,.95);
+  --dz-plate-1:rgba(255,255,255,.6);  --dz-plate-2:rgba(255,255,255,.45);
+  --dz-plate-l1:#a9b6d4; --dz-plate-l2:#b6c2dc; --dz-plate-l3:#c2cde4; --dz-plate-div:#b6c2dc;
+  --dz-gua-tx:#6b7896;   --dz-gua-idx:#93a0bb;
+  --dz-tai-1:#ffffff;    --dz-tai-2:#3d4661;  --dz-tai-ring:#a9b6d4;
+  --dz-shell-1:#ffffff;  --dz-shell-2:#e8eef8; --dz-shell-3:#cdd8ea; --dz-shell-4:#b3c0d8;
+  --dz-shell-ring:#8e9cb8; --dz-shell-seam:#a8b4cc; --dz-shell-ento:rgba(255,255,255,.8);
+  --dz-shell-edge:#8e9cb8; --dz-shell-hi:#ffffff;
+  --dz-zuo:#6b7896;      --dz-zhao:#d8813a;
+  --dz-coin-1:#eef4ff;   --dz-coin-2:#d2dcf0; --dz-coin-3:#aab8d4;
+  --dz-coin-tx:#3d4a68;  --dz-coin-ring:rgba(150,165,200,.5);
+  --dz-coin-sh1:rgba(255,255,255,.85); --dz-coin-sh2:rgba(90,110,160,.24);
+}
+
+/* ── 6. 玻璃主题的面板模糊：必须逐个列出「面」选择器，CSS 没有「所有面板」这种选择器 ── */
+[data-theme="glass"] .side,
+[data-theme="glass"] .st,
+[data-theme="glass"] .note,
+[data-theme="glass"] .lg,
+[data-theme="glass"] .grid,
+[data-theme="glass"] .pgrid,
+[data-theme="glass"] table,
+[data-theme="glass"] .hp-fig,
+[data-theme="glass"] .hp-kv,
+[data-theme="glass"] .hp-eq,
+[data-theme="glass"] .hp-note,
+[data-theme="glass"] .hp-tip,
+[data-theme="glass"] .hp-warn,
+[data-theme="glass"] .hp-toc,
+[data-theme="glass"] .btn,
+[data-theme="glass"] .dz-sel,
+[data-theme="glass"] .dz-bn,
+[data-theme="glass"] .dz-card,
+[data-theme="glass"] .pool-row,
+[data-theme="glass"] .btbar,
+[data-theme="glass"] .pool-fold,
+[data-theme="glass"] .imp-drop,
+[data-theme="glass"] .pill{
+  -webkit-backdrop-filter:blur(var(--blur)) saturate(1.6);
+  backdrop-filter:blur(var(--blur)) saturate(1.6);
+}
+/* 玻璃主题的卡片要有「一片玻璃」的厚度：外侧柔影 + 内侧高光 */
+[data-theme="glass"] .st,
+[data-theme="glass"] .note,
+[data-theme="glass"] .lg,
+[data-theme="glass"] .grid,
+[data-theme="glass"] .pgrid,
+[data-theme="glass"] .hp-fig,
+[data-theme="glass"] .hp-kv,
+[data-theme="glass"] .hp-eq{box-shadow:var(--sh1),var(--sh3)}
+
+/* ── 7. 背景层：html 上挂 --bgfx，四套主题共用一条规则 ──────────────────────── */
+html{background-color:var(--bg);background-image:var(--bgfx);
+  background-attachment:fixed;background-size:cover;background-repeat:no-repeat;
+  transition:background-color .28s ease}
+body{background:transparent;color:var(--tx);transition:color .28s ease}
+/* 炫彩主题：底图略加一点星尘感（纯 CSS，不引图片）*/
+[data-theme="vivid"] html,[data-theme="vivid"] body{background-attachment:fixed}

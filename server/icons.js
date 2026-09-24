@@ -44,10 +44,32 @@ function validPng(buf) {
   return Buffer.isBuffer(buf) && buf.length >= MIN_BYTES && buf.slice(0, 8).equals(PNG_MAGIC);
 }
 
+// ⚠️⚠️ 本机沙箱下 open() 极贵（实测 145 次 open+read8 = 7.5 秒），statSync/readdir 几乎免费（1ms）。
+//      所以校验结果必须按 (mtime, size) 记在内存里，**绝不在每次接口调用时重新 open 一遍** ——
+//      否则 /api/status 会卡十几秒，浏览器 6 条连接被占满，连刷新页面都会卡住。
+const vCache = new Map();      // 绝对路径 -> { k:'mtime:size', ok:bool }
+
+/** 单个文件是否有效 PNG（statSync 便宜 → 缓存命中就 0 I/O；未命中才读 8 字节魔数） */
+function validPngFile(file) {
+  let st;
+  try { st = fs.statSync(file); } catch (e) { return false; }
+  if (!st.isFile() || st.size < MIN_BYTES) return false;
+  const k = st.mtimeMs + ':' + st.size;
+  const hit = vCache.get(file);
+  if (hit && hit.k === k) return hit.ok;
+  let ok = false;
+  try {
+    const fd = fs.openSync(file, 'r');
+    try { const h = Buffer.alloc(8); ok = fs.readSync(fd, h, 0, 8, 0) === 8 && h.equals(PNG_MAGIC); }
+    finally { fs.closeSync(fd); }
+  } catch (e) { ok = false; }
+  vCache.set(file, { k, ok });
+  return ok;
+}
+
 /** 本地已有的图标是否**有效**（不是只看文件在不在） */
 function hasValidIcon(dir, id) {
-  const f = path.join(ASSETS, dir, id + '.png');
-  try { return validPng(fs.readFileSync(f)); } catch (e) { return false; }
+  return validPngFile(path.join(ASSETS, dir, id + '.png'));
 }
 
 /** 更新名称/命途索引（新版本上线的新角色、新光锥靠它才能显示名字与命途） */
@@ -133,16 +155,84 @@ async function ensureIconsFor(entries, onLog) {
   return ensureWant(want, onLog);
 }
 
-/** 统计本地图标库现状（给「设置 / 数据管理」页显示） */
+/** 后台把「每个图标是否有效」补齐（异步，不阻塞事件循环）
+ *  ⚠️⚠️ 这是**后台任务**，绝不能因为异常把整个服务带走：
+ *      Node ≥15 里未处理的 Promise rejection 会直接 FATAL 掉进程
+ *      （踩过：jobs 里推的是 Promise 不是函数 → 一调用就崩整个 server）。
+ *      所以这里①推的是「函数」不是「已执行的 Promise」，②整体再包一层 catch。 */
+let warmTask = null;
+function warmValidity() {
+  if (warmTask) return warmTask;
+  warmTask = (async () => {
+    const jobs = [];
+    for (const d of ['avatar', 'light_cone']) {
+      let files = [];
+      try { files = fs.readdirSync(path.join(ASSETS, d)); } catch (e) { continue; }
+      for (const f of files) {
+        if (!f.endsWith('.png')) continue;
+        const file = path.join(ASSETS, d, f);
+        let st;
+        try { st = fs.statSync(file); } catch (e) { continue; }
+        const k = st.mtimeMs + ':' + st.size;
+        if (st.size < MIN_BYTES) { vCache.set(file, { k, ok: false }); continue; }
+        const hit = vCache.get(file);
+        if (hit && hit.k === k) continue;
+        jobs.push(async () => {
+          let ok = false, fh = null;
+          try {
+            fh = await fs.promises.open(file, 'r');
+            const h = Buffer.alloc(8);
+            const r = await fh.read(h, 0, 8, 0);
+            ok = r.bytesRead === 8 && h.equals(PNG_MAGIC);
+          } catch (e) { ok = false; } finally { if (fh) await fh.close().catch(() => {}); }
+          vCache.set(file, { k, ok });
+        });
+      }
+    }
+    // ⚠️ **串行 + 间隔**：本机沙箱的文件 I/O 会互相抢锁，并发预热会把同时到达的
+    //    /api/status 拖到 5 秒以上（实测）。这里只求「后台慢慢补齐」，不抢请求的路。
+    for (const job of jobs) {
+      try { await job(); } catch (e) { /* 单个文件失败不影响整体 */ }
+      await new Promise(r => setTimeout(r, 80));
+    }
+  })().catch(e => { console.log('图标校验预热失败（不影响功能）：' + (e && e.message)); });
+  return warmTask;
+}
+
+/** 统计本地图标库现状（给「设置 / 数据管理」页显示）
+ *  ⚠️ 这个接口会被页面频繁调用，所以**只能做便宜的 I/O**：readdir + statSync。
+ *     没预热到的文件先按「字节数够大」计入有效，同时起异步预热；预热完再访问就是精确值。 */
+const idxCache = new Map();    // index json -> { k:'mtime:size', n:int }
 function iconStats() {
+  warmValidity();
   const count = dir => {
     const p = path.join(ASSETS, dir);
-    if (!fs.existsSync(p)) return { files: 0, valid: 0 };
-    const files = fs.readdirSync(p).filter(f => f.endsWith('.png'));
-    return { files: files.length, valid: files.filter(f => hasValidIcon(dir, f.replace(/\.png$/, ''))).length };
+    let files = [];
+    try { files = fs.readdirSync(p).filter(f => f.endsWith('.png')); } catch (e) { return { files: 0, valid: 0 }; }
+    let valid = 0;
+    for (const f of files) {
+      const file = path.join(p, f);
+      let st;
+      try { st = fs.statSync(file); } catch (e) { continue; }
+      if (!st.isFile() || st.size < MIN_BYTES) continue;
+      const k = st.mtimeMs + ':' + st.size;
+      const hit = vCache.get(file);
+      if (hit && hit.k === k) { if (hit.ok) valid++; }
+      else valid++;                       // 还没预热到 → 先按大小计入，预热完就精确了
+    }
+    return { files: files.length, valid };
   };
   const idx = f => {
-    try { return Object.keys(JSON.parse(fs.readFileSync(path.join(ASSETS, 'index', f), 'utf8'))).length; } catch (e) { return 0; }
+    const file = path.join(ASSETS, 'index', f);
+    let st;
+    try { st = fs.statSync(file); } catch (e) { return 0; }
+    const k = st.mtimeMs + ':' + st.size;
+    const hit = idxCache.get(file);
+    if (hit && hit.k === k) return hit.n;
+    let n = 0;
+    try { n = Object.keys(JSON.parse(fs.readFileSync(file, 'utf8'))).length; } catch (e) { n = 0; }
+    idxCache.set(file, { k, n });
+    return n;
   };
   return { avatar: count('avatar'), light_cone: count('light_cone'),
            characters: idx('cn_characters.json'), light_cones: idx('cn_light_cones.json') };

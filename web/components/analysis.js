@@ -228,12 +228,12 @@
     <div class="pgrid">
       <div class="pc" v-for="c in list" :key="c.id">
         <div class="prow">
-          <div class="cw2" :style="{ background: 'conic-gradient(from 210deg,#e8b95f,#fdf3d8,#d9a03c,#fdf3d8,#e8b95f)' }">
+          <div class="cw2" :style="{ background: 'var(--ring-5)' }">
             <img loading="lazy" :src="'assets/avatar/' + c.id + '.png'" :alt="c.name">
             <span class="ck" :title="'星魂 ' + c.rank + '（共 ' + c.copies + ' 个）'">{{ c.rank }}命</span>
           </div>
           <span class="pconn">+</span>
-          <div v-if="c.lcOwned" class="lw2" :style="{ background: 'conic-gradient(from 210deg,#e8b95f,#fdf3d8,#d9a03c,#fdf3d8,#e8b95f)' }"
+          <div v-if="c.lcOwned" class="lw2" :style="{ background: 'var(--ring-5)' }"
                :title="c.lcName + '　叠影 ' + c.lcSup + '（共 ' + c.lcCopies + ' 张 · ' + c.lcSrcText + '）'">
             <img loading="lazy" :src="'assets/light_cone/' + c.lcId + '.png'" :alt="c.lcName">
             <span class="ck lk" :title="'叠影 ' + c.lcSup">叠{{ c.lcSup }}</span>
@@ -260,7 +260,7 @@
     <h2>五星光锥全览 <small>{{ list.length }} 张 · 按命途分组 · 右下角为叠影等级</small></h2>
     <div class="grid g5l">
       <div class="c ar5" :class="{ stdl: x.isStd }" v-for="x in list" :key="x.id">
-        <div class="cw" style="--ring:#e0a44a">
+        <div class="cw" style="--ring:var(--ring-c5)">
           <img loading="lazy" :src="'assets/light_cone/' + x.id + '.png'" :alt="x.name">
           <span class="ck" :title="'叠影 ' + x.sup + '（共 ' + x.copies + ' 张 · ' + x.srcText + '）'">叠{{ x.sup }}</span>
         </div>

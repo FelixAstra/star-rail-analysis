@@ -4,7 +4,19 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>崩铁抽卡分析工作台</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>✦</text></svg>">
+<link rel="icon" href="favicon.png">
+<!-- ⚠️ 主题必须在**首帧之前**定下来，否则会先白闪一下再变深色。
+     所以在 <head> 里同步设 <html data-theme>，不能等 Vue 挂载。
+     key 必须与 app.js 里的 THEME_KEY 一致（sr.theme）。 -->
+<script>
+(function () {
+  var K = 'sr.theme', OK = ['vivid', 'light', 'dark', 'glass'], t = 'vivid';
+  try { var v = localStorage.getItem(K); if (OK.indexOf(v) >= 0) t = v; } catch (e) {}
+  document.documentElement.setAttribute('data-theme', t);
+})();
+</script>
+<!-- theme.css 必须**先于** styles.css：前者只定义 token，后者只用 token -->
+<link rel="stylesheet" href="theme.css">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -18,6 +30,7 @@
 <script src="components/shared.js"></script>
 <script src="components/analysis.js"></script>
 <script src="components/roles.js"></script>
+<script src="components/divination.js"></script>
 <script src="components/help.js"></script>
 <script src="components/importer.js"></script>
 <script src="components/datamanage.js"></script>

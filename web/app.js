@@ -11,6 +11,7 @@
     { g: '分析', items: [
       { k: 'analysis', ic: '◎', name: '抽卡分析' },
       { k: 'roles', ic: '✦', name: '角色管理' },
+      { k: 'divination', ic: '☯', name: '八卦占卜' },
     ] },
     { g: '数据', items: [
       { k: 'data', ic: '⇅', name: '抓取与数据管理' },
@@ -30,6 +31,33 @@
   const goto = (k) => {
     page.value = k;
     window.scrollTo({ top: 0, behavior: 'auto' });
+  };
+
+  // ── 主题 ──────────────────────────────────────────────────────────────────
+  // 四套主题的**配色定义全在 web/theme.css**（按 <html data-theme> 切），
+  // 这里只负责「选哪一套」+ 持久化，不碰任何颜色值。
+  // ⚠️ 首帧防闪烁靠 index.html <head> 里的内联脚本 —— 不能等 Vue 挂载再设，
+  //    否则会先白闪一下再变深色。两边用的 key 必须一致。
+  const THEME_KEY = 'sr.theme';
+  const THEMES = [
+    { k: 'vivid', n: '炫彩', tip: '取自 logo 的深空星云配色：电光蓝 → 紫 → 青，配车头暖光' },
+    { k: 'light', n: '明亮', tip: '原来的浅色配色' },
+    { k: 'dark', n: '暗黑', tip: '中性冷灰暗色，长时间看不刺眼' },
+    { k: 'glass', n: '玻璃', tip: '流体玻璃：半透明面板 + 背景彩色光团' },
+  ];
+  const THEME_KEYS = THEMES.map(t => t.k);
+  const readTheme = () => {
+    try {
+      const t = localStorage.getItem(THEME_KEY);
+      return THEME_KEYS.indexOf(t) >= 0 ? t : 'vivid';
+    } catch (e) { return 'vivid'; }
+  };
+  const theme = ref(readTheme());
+  const setTheme = (k) => {
+    if (THEME_KEYS.indexOf(k) < 0) return;
+    theme.value = k;
+    document.documentElement.setAttribute('data-theme', k);
+    try { localStorage.setItem(THEME_KEY, k); } catch (e) { /* 隐私模式下写不进去，不影响切换 */ }
   };
 
   const App = {
@@ -55,15 +83,20 @@
         } finally { loading.value = false; }
       };
 
-      onMounted(() => { load(); onScroll(); window.addEventListener('scroll', onScroll, { passive: true }); });
+      onMounted(() => {
+        load(); onScroll();
+        window.addEventListener('scroll', onScroll, { passive: true });
+        // 内联脚本已设过一次；这里再对齐一回，防止 <html> 上的值与内存状态不一致
+        document.documentElement.setAttribute('data-theme', theme.value);
+      });
       onUnmounted(() => window.removeEventListener('scroll', onScroll));
-      return { NAV, page, goto, a, loading, err, load, showTop, toTop };
+      return { NAV, page, goto, a, loading, err, load, showTop, toTop, theme, THEMES, setTheme };
     },
     template: `
     <div class="app">
       <aside class="side">
         <div class="brand">
-          <div class="logo">✦</div>
+          <img class="logo" src="/assets/logo.png" alt="崩铁抽卡分析" width="34" height="34">
           <div><div class="bt">崩铁抽卡分析</div><div class="bs">本地工作台</div></div>
         </div>
         <template v-for="grp in NAV" :key="grp.g">
@@ -76,9 +109,21 @@
           </button>
         </template>
         <div class="sfoot">
+          <!-- 主题切换：四套配色定义在 web/theme.css，这里只切 <html data-theme> -->
+          <div class="thm">
+            <span class="thm-h">主题</span>
+            <div class="thm-g">
+              <button v-for="t in THEMES" :key="t.k" type="button"
+                      class="thm-b" :class="[{ on: theme === t.k }, 'sw-' + t.k]"
+                      :title="t.tip" :aria-pressed="theme === t.k" @click="setTheme(t.k)">
+                <i class="thm-sw"></i><span>{{ t.n }}</span>
+              </button>
+            </div>
+          </div>
           UID <b>{{ a ? a.uid : '—' }}</b><br>
           数据只存本机 <code>data/</code><br>
-          界面与算法全部离线
+          除下方一处外，界面与算法全部离线<br>
+          <span class="sfoot-net" title="只有卡池日历一项会联网，且失败自动降级到本地缓存 / 内置表">唯一联网点：卡池日历</span>
         </div>
       </aside>
 
@@ -91,6 +136,7 @@
         <template v-else>
           <w-analysis-page v-if="page === 'analysis'" :a="a"></w-analysis-page>
           <w-role-page v-else-if="page === 'roles'" :a="a"></w-role-page>
+          <w-divination-page v-else-if="page === 'divination'" :a="a"></w-divination-page>
           <w-help-page v-else-if="page === 'help'" :a="a"></w-help-page>
           <w-data-manage v-else-if="page === 'data'" :a="a"
                          @refetch="load(true)" @refresh-icon="load(true)"></w-data-manage>
@@ -135,6 +181,7 @@
   // 注：w-audit（数据校验：与工坊对账）已按需求 1.2-4 下线
   app.component('w-analysis-page', W.AnalysisPage);
   app.component('w-role-page', W.RolePage);
+  app.component('w-divination-page', W.DivinationPage);
   app.component('w-help-page', W.HelpPage);
   app.component('w-data-manage', W.DataManage);
   app.mount('#app');

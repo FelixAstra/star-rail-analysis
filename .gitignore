@@ -27,6 +27,10 @@ assets/index/
 .server.log
 *.log
 
+# 构建 core/gua-data.js 时下载的三个易经数据集 + 一份 TS 表（tools/build-gua-data.js）。
+# 生成物 core/gua-data.js 已入库，所以缓存不用随仓库分发；重跑构建脚本会自动重下。
+.cache-yi/
+
 # ── 4. 系统 / 编辑器 ────────────────────────────────────────────────────────
 .DS_Store
 ._*
