@@ -1,377 +1,245 @@
-# 崩铁抽卡分析工作台
+<div align="center">
 
-本地运行的《崩坏：星穹铁道》抽卡（跃迁）记录分析平台。**数据全部留在你自己电脑上，不联网上传任何内容。**
+# Star Rail Warp Analyzer
+
+**A local-first tracker and analyzer for your Honkai: Star Rail warp history.**
+Pull rates, pity progress, and every limited 5★ you own — computed on your own machine, from records you can audit line by line.
+
+<img src="assets/readme/analysis.png" alt="Warp analysis dashboard: seven summary cards showing total pulls, recent pulls, 5★ rate, pulls per limited 5★, and 50/50 win rates, above a per-banner pull table" width="880">
+
+<sub>Fictional demo data. The app runs entirely on <code>127.0.0.1</code> and uploads nothing.</sub>
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Node](https://img.shields.io/badge/node-%E2%89%A518-3c873a.svg)](https://nodejs.org)
+[![Dependencies](https://img.shields.io/badge/runtime%20dependencies-0-success.svg)](#quick-start)
+[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey.svg)](#quick-start)
+
+</div>
+
+> **The app UI is in Simplified Chinese.** This README, the code and the CLI are in English.
+>
+> **Unofficial fan project.** Not affiliated with or endorsed by miHoYo / HoYoverse. It reads the official endpoint using your own account credentials, nothing more — see [Credits & disclaimer](#credits--disclaimer).
 
 ---
 
-## 怎么用
+## Why this one?
 
-1. 双击 **`start.command`**
-2. 终端会起一个本地服务，并自动打开浏览器
-3. 用完之后，**关掉那个终端窗口**服务就停了
+Web-based warp trackers ask you to hand your `authkey` to a third-party server. This one is a single Node process bound to `127.0.0.1` that never sends your records anywhere.
 
-> 首次双击如果提示「无法打开，因为它来自身份不明的开发者」：
-> 在「系统设置 → 隐私与安全性」里点一次「仍要打开」即可（本文件是纯 shell 脚本，可以直接用文本编辑器查看内容）。
+- **Local by default.** No account, no telemetry, no upload. Your records sit in `data/`, which is git-ignored and stays on your disk.
+- **Your history grows, it never shrinks.** The official API only serves a sliding window of roughly one year. Every import is merged into the local archive by record `id`, so older pulls survive as the window rolls forward.
+- **Handles both gacha endpoints.** Limited (collab) banners are served by a *second* endpoint. Query only the usual one and you get **zero rows with `retcode: 0`** — no error, just a whole banner silently missing.
+- **Numbers you can check by hand.** Every rate is derived only from imported records you can open and audit, and the in-app handbook documents each formula.
+- **A divination page, kept honest.** A full six-line (六爻) casting engine, auspicious-hour scoring, and a recommended pull count that comes from gacha pity maths — never from the hexagram. See [Divination](#divination).
 
-需要电脑上有 **Node.js**（只用到标准库，不需要 npm install）。
-启动脚本会自己去找 `/opt/homebrew/bin/node`、`/usr/local/bin/node`、`PATH` 里的 node。
+## Quick start
 
-### 想先看看长什么样？灌一份演示数据
+**Requirements:** [Node.js](https://nodejs.org) 18 or newer. That is the whole list — there is **no `npm install`**, because the project has zero runtime dependencies (Vue 3 and the lunar-calendar engine are vendored).
 
-仓库里**不带任何真实账号数据**（`data/` 整个目录都不入库），所以刚克隆下来界面是空的。
-想看到有内容的界面，先灌一份**虚构的演示数据**：
+**macOS**
+
+```bash
+git clone https://github.com/FelixAstra/star-rail-analysis.git
+cd star-rail-analysis
+./start.command          # or just double-click start.command in Finder
+```
+
+It starts a local server, opens your browser, and stops when you close the terminal window.
+
+> On first launch macOS may refuse to open it ("unidentified developer"). Allow it once under **System Settings → Privacy & Security → Open Anyway**. `start.command` is a plain shell script — read it before you trust it.
+
+**Windows / Linux**
+
+```bash
+git clone https://github.com/FelixAstra/star-rail-analysis.git
+cd star-rail-analysis
+node server/server.js
+```
+
+Then open the URL printed in the console (`http://127.0.0.1:8799/`; if that port is busy the server steps up to the next free one and writes the real port to `.port`).
+
+### Want to see it populated first?
+
+A fresh clone has no account data, so the screens are empty. Generate a fictional demo account:
 
 ```bash
 node tools/make-demo-data.js
 ```
 
-它会生成一个虚构 UID（`100000000`）与约 1200 条抽卡记录 —— 跨 5 个月、6 类池齐全、
-含一次跨保留期的常驻池，引擎的所有断言都能跑通（`自检` 页全绿）。
+That writes a synthetic UID (`100000000`) and about 1,200 warp records spanning roughly four months, covering five of the six banner types (the beginner pool is represented only by a screenshot backfill).
 
-> ⚠️ 这个脚本**会覆盖 `data/` 里同名的文件**。它不会直接闷头覆盖：发现已有数据时，
-> 会先把整个 `data/` 备份到 `data/_demo-backup-<时间戳>/` 再继续，所以不会悄悄弄丢你自己的记录。
-> 传给 `--force` 可以跳过确认。
+> The script refuses to run if `data/records.json` already exists. To overwrite anyway, use `node tools/make-demo-data.js --force` — it first copies `records.json`, `meta.json`, `account.json` and `external.json` into `data/_demo-backup-<timestamp>/`.
 
-要换成你自己的数据，删掉 `data/` 后启动平台、导入自己的抽卡链接即可（见下节）。
+## Importing your warps
 
----
+In game: **Warp → View Details → Share**, then copy the link. It looks like `...api/getGachaLog?authkey=...`. Paste the whole thing into **Data & Import** — the `end_id` and `page` parameters are ignored.
 
-## 数据来源与隐私
+Importing walks all six pools **sequentially**, switching endpoint by banner type — and that detail matters:
 
-**这个仓库不包含任何真实抽卡数据。** 逐项说明：
-
-| 内容 | 入库？ | 说明 |
+| Banner | `gacha_type` | Endpoint |
 |---|---|---|
-| `data/records.json` | ❌ | 逐条抽卡记录 + UID —— 唯一的真实数据源 |
-| `data/meta.json` | ❌ | UID / 昵称 / 「数据补填」基准与修改记录 |
-| `data/account.json` | ❌ | 截图补录的常驻池历史 —— 换个账号就不适用 |
-| `data/external.json`、`data/uploads/` | ❌ | 外部统计补录结果与上传的原始截图 |
-| `assets/avatar`、`assets/light_cone`、`assets/index` | ❌ | 米哈游美术素材与解包索引（版权），平台运行时自行下载 |
-| `assets/help/*.png` | ✅ | 说明页配图，**已用演示数据重拍** —— 里面没有作者的真实抽卡记录 |
+| Stellar Warp (standard) | `1` | `getGachaLog` |
+| Departure Warp (beginner) | `2` | `getGachaLog` |
+| Character Event Warp | `11` | `getGachaLog` |
+| Light Cone Event Warp | `12` | `getGachaLog` |
+| **Character Collab Warp** | `21` | **`getLdGachaLog`** |
+| **Light Cone Collab Warp** | `22` | **`getLdGachaLog`** |
 
-也就是说：**克隆下来直接跑，跑出来的东西与作者本人的账号没有任何关系。**
+> Collab banners answer on a different endpoint. Query only the common one and the result is **0 rows with `retcode: 0`** — indistinguishable from "you never pulled here", while the entire banner is dropped.
 
-平台自身也是「不出本机」的：记录全部存在 `data/`，服务**只监听 `127.0.0.1`**（不对外），
-对外的请求只有两个 —— 抓你自己贴的那条官方抽卡链接，以及下载图标素材。
+### Imports are additive, never destructive
 
----
+- The **first** import becomes the foundation of your local archive.
+- Every **later** import only adds records that are not already there, deduplicated by record `id`. Each import reports how many rows came in and how many were new.
+- Raw responses are archived to `data/snapshots/`, so you can always trace which import produced what.
 
-## 界面
+Because of this, your local coverage ends up **longer than any single fetch** — which is why old pulls don't disappear when the API's window rolls forward.
 
-左侧是功能栏，分四组：
+> The official API keeps about **one year** of history. To rebuild anything older, keep syncing over time or import a UIGF / SRGF file. No tool can recover pre-window history from a URL — the data is gone server-side.
 
-| 页面 | 作用 |
-|---|---|
-| **抽卡分析** | 只放**当期结论**：① 数据总貌（7 张卡）② 当期卡池识别（角色跃迁 / 光锥跃迁两个页签，含出金明细与吉凶） |
-| **角色管理** | 五星角色 × 专属光锥（星魂 · 叠影 · 数据来源）/ 五星光锥全览（按命途分组） |
-| **八卦占卜** | 摇卦（铜钱法 / 大衍揲蓍法）+ 今日吉时 + 剩余卡池期内择日 + **建议抽数**。卦定吉凶、保底数学定抽数，两者互不影响 |
-| **抓取与数据管理** | 粘贴抽卡链接抓取、看数据现状、**各卡池时间边界**、**数据补填**（含修改记录）、**外部统计补录**（上传截图补星魂/叠影）、自检断言 |
-| **解释说明** | 说明书：9 章讲清每个数字的来源与口径，配界面截图；左上角有目录可跳转 |
+Each import also refreshes the **name / path index** and downloads any **missing character avatars and light cone icons** (validated by PNG magic bytes, not just "the file exists").
 
-> 抽卡分析页只保留**当期看得到的东西**，解释性文字、对账表、卡池边界都不在这一页：
-> 口径与理由 → 「解释说明」；数据与边界 → 「抓取与数据管理」。
-> 右下角有一个**星穹列车悬浮按钮**，往下滚一段会出现，点一下回到页面顶部。
+## Data & privacy
+
+This repository contains **no real player data**. Here is the full inventory:
+
+| Path | Committed | What it is |
+|---|---|---|
+| `data/records.json` | No | Every warp record plus your UID — the single source of truth |
+| `data/meta.json` | No | UID, nickname, manual baseline and edit history |
+| `data/account.json` | No | Out-of-window history captured from screenshots — account-specific |
+| `data/external.json`, `data/uploads/` | No | Manually entered stats and the screenshots they came from |
+| `data/snapshots/` | No | Raw API responses archived per import — also carries your UID |
+| `data/banner-cache.json` | No | Banner calendar cache (6 h TTL) |
+| `assets/avatar`, `assets/light_cone`, `assets/index` | No | miHoYo assets and datamined indices — downloaded at runtime |
+| `assets/help`, `assets/readme` | Yes | Screenshots taken with **demo data** only |
+
+Clone this repo and run it, and nothing you see is connected to the author's account.
+
+The runtime is quiet too: the server **listens only on `127.0.0.1`**, and makes exactly two kinds of outbound request — the warp URL you paste yourself, and icon downloads. Banner dates are the only other networked call, and they fall back to a cached or built-in table when offline.
+
+> **Backups:** your entire history is `data/records.json` plus `data/snapshots/`. Copy that folder and you have everything. Deleting `data/` resets your records; `assets/` re-downloads itself.
 >
-> 四星 / 三星清单已按需求下线（页面与引擎都不再产出）。
+> Since `data/` holds your UID, never force-add it to a repository with `git add -f`, and check before pushing to a repo of your own.
 
-「卡池日历 / 配队建议 / 设置」是后续要加的占位。
+## What's inside
 
----
+Five pages, organised in the sidebar. The UI is Simplified Chinese; the English names below are for orientation only.
 
-## 主题与外观
-
-左侧栏顶部是项目 logo，**左下角有主题切换**，四选一，选完记在浏览器本地（`localStorage` 的 `sr.theme`），下次打开还是这套：
-
-| 主题 | 说明 |
+| Page | What it does |
 |---|---|
-| **炫彩**（默认） | 取自 logo 的深空星云配色：深靛蓝底 + 电光蓝 → 紫 → 青，辅以车头暖光 |
-| **明亮** | 改造前的浅色配色（逐值对齐，视觉零变化） |
-| **暗黑** | 中性冷灰，低对比、长时间看不刺眼 |
-| **玻璃** | 流体玻璃：半透明面板 + 背景彩色光团，面板走 `backdrop-filter` |
+| **Warp Analysis** (抽卡分析) | Current-period conclusions: a seven-card overview, and banner detection for character / light cone warps with per-pull gold details |
+| **Characters** (角色管理) | 5★ characters × their signature light cones (eidolon, superimposition, and where each number came from), plus a 5★ light cone list grouped by path |
+| **Divination** (八卦占卜) | Six-line casting (coin or yarrow-stalk), today's auspicious hours, recommended dates inside the current banner, and a **recommended pull count** |
+| **Data & Import** (抓取与数据管理) | Paste a warp link, inspect data coverage, see each banner's time bounds, edit the manual baseline, attach screenshot-derived stats, run self-checks |
+| **Handbook** (解释说明) | Nine chapters explaining where every number comes from and how it is defined, with annotated screenshots |
 
-四套主题的**全部色值集中在 `web/theme.css`**，按 `<html data-theme="...">` 切换；
-`styles.css` 与各组件里不再出现硬编码色值，一律引用那里的语义 token。
-占卜页的罗盘、龟腹甲、铜钱也会跟着主题变色（全是 SVG/CSS 画的，不引任何图片素材）。
+Deep methodology deliberately lives in the **Handbook**, not here — a README should not be a manual.
 
-> ⚠️ 只有两类色值**故意**不跟随主题：游戏稀有度环（金 / 紫 / 蓝是游戏语义色），
-> 以及右下角回顶按钮上的星穹列车图标（它站在金色环上）。
-> 首帧防闪白靠 `index.html` `<head>` 里的内联脚本**同步**设 `data-theme`，不能等 Vue 挂载。
+### Divination
 
----
+The divination page follows rules fixed up front, and the app is built to keep them honest:
 
-## 抓取是怎么工作的
+- **Backs are yang**, and judgment rests on the line texts (no 纳甲 / stem-branch extension).
+- Two casting methods: three coins, or the traditional yarrow-stalk procedure. Both four-image probability sets are pinned by 600,000-sample simulation (yarrow: old-yang 3/16, young-yin 7/16, young-yang 5/16, old-yin 1/16 — the widely cited "young-yang 7/16" is wrong).
+- Changing-line interpretation follows Zhu Xi's *Yixue Qimeng*.
+- **The hexagram never changes the odds.** Pull counts come from the documented pity model (soft pity from 74 / 66 pulls), which reproduces the official 1.600% / 1.870% rates. The hexagram only decides *how confident you want to be* before committing. Recommendations are a **single number**, never a range.
+- The page states plainly that no divination method has demonstrated predictive power — the precision here comes from the gacha maths, not the oracle.
 
-在游戏里打开「跃迁记录」→ 分享拿到链接（形如 `...api/getGachaLog?authkey=...`），整条粘贴进来即可。
-链接里的 `end_id` / `page` 会被自动忽略。
+### Theming
 
-抓取会**同时请求两个端点**，这一点很关键：
+Four themes ship in the box, switchable from the bottom of the sidebar and remembered in `localStorage`. The default is derived from the project logo.
 
-| 卡池 | `gacha_type` | 端点 |
-|---|---|---|
-| 群星跃迁（常驻） | `1` | `getGachaLog` |
-| 始发跃迁（新手） | `2` | `getGachaLog` |
-| 角色活动跃迁 | `11` | `getGachaLog` |
-| 光锥活动跃迁 | `12` | `getGachaLog` |
-| **角色联动跃迁** | `21` | **`getLdGachaLog`** |
-| **光锥联动跃迁** | `22` | **`getLdGachaLog`** |
+<img src="assets/readme/themes.png" alt="The same dashboard shown in all four themes: vivid (dark indigo and neon), light, dark, and glass" width="880">
 
-> 联动池走的是**另一个端点**。只抓普通端点的话，联动池会**静默返回 0 条**（`retcode=0`、不报错），
-> 看起来就像「这个池没抽过」，实际是整个池被漏掉。
+All colours live in **`web/theme.css`** as semantic tokens. `styles.css` and the components reference tokens for every themable colour; the only literals left are a handful of theme-agnostic shadow alphas and the four theme-swatch gradients. Switching is a single `data-theme` attribute on `<html>`, applied synchronously by an inline `<head>` script so the first frame never flashes the wrong palette. The divination compass, plastron and coins are pure SVG/CSS and re-colour with the theme.
 
-### 第一次导入 = 建仓；之后每次导入 = 校验 + 累计
+<img src="assets/readme/divination.png" alt="Divination page: the current banner with its remaining time, a circular bagua plate, the six-line casting panel, and controls for casting method, banner and pity state" width="880">
 
-- **第一次导入**：本地还没有数据仓，这一次导入的记录**就是仓库的全部底子**。
-- **之后每次导入**：只往里**加新记录**，已经存在的记录一条都不动（按记录 `id` 取并集去重）。
-  导入完会自动报一句**这次进了多少条、新增多少条**（`imports` 里的 `incoming` / `added`），
-  「× 条中 × 条是新记录」就是校验结果。
-- 所以本地能保留的区间会**比任何一次抓取都长**——这也是为什么旧数据不会因为滑动窗口而丢。
-- 原始快照每次都另存到 `data/snapshots/`，随时可回溯是哪一次的导入。
+<img src="assets/readme/roles.png" alt="Characters page: 5★ characters paired with their signature light cones, each showing eidolon level, superimposition level and the source of the data" width="880">
 
-> 官方接口只保留约 **1 年**的记录，而且是**滑动窗口**——每抓一次，新的一批进来、最老的一批被挤掉。
-> 想还原更早的历史，只能靠**持续同步**慢慢攒，或者导入 UIGF / SRGF 文件；
-> **不要指望「一条链接还原第三方总抽数」**，那是接口层面就取不到的。
-
-### 每次抓完会自动
-
-- 更新**名称 / 命途索引**（新版本的新角色、新光锥靠它才能显示名字与命途）
-- 下载**缺失的角色头像与光锥图标**（校验 PNG 魔数 + 字节数，不是「文件在就算有」）
-
----
-
-## 关于总抽数：两个口径，别混
-
-**官方接口已经查不到更早的记录**（服务器侧删除，不可恢复），所以本平台**不自己算账号总抽数**，
-而是把你在星穹工坊「抽卡总结」页看到的数字**手工补填进来当基准**。
-
-平台上有**两个「总抽数」**，用途不同：
-
-| 口径 | 是什么 | 从哪来 |
-|---|---|---|
-| **总抽数** | 账号**全部历史**（含接口已经不返回的部分） | 补填的基准 ＋ 补填时刻**之后**新同步进来的记录 |
-| **近期总抽数** | 本地数据仓里**全部导入记录**的条数 | 自动取最早一条记录的日期当起点，**不可修改** |
-
-> 两个口径在页面上都标了来源。**做「出金率 / 每 UP / 小保底不歪」这类比率时一律用「近期总抽数」这一口径**
-> （即只用导入记录），因为它有逐条明细可核；总量口径里有一段只有数字没有明细，掺进去会让比率无法复核。
-
-### 补填在哪改
-
-**抓取与数据管理 → ④ 数据补填**，三个可编辑字段：
-
-- **总抽数** / **五星数** —— 照抄工坊「抽卡总结」页
-- **快照时间** —— 默认**现在**（**精确到秒**，打开页面时会**每秒实时跟随**当前时间）；动手改过就停止跟随，
-  旁边有「↻ 跟随当前时间」可以恢复。它决定了「之后新增」从哪一刻开始算
-- **近期总抽数起点** —— **只读**，自动取本地最早一条记录（**显示到秒**），用来提示你增量是从哪儿算起的
-
-按 **「保存并更新」** 即可，页面上会多一行**修改记录**（保存时间 / 总抽数 / 五星数 / 快照时间），
-改了几次、改前改后分别是多少都留痕。保存完抽卡分析页的总抽数会**立刻跟着变**。
-
-> ⚠️ **增量是按「精确时间戳」切的，不是按天**。补填时刻之后、同一时刻之前的记录才算增量，
-> 这样重复导入同一天的记录也不会被算两遍。
-> 快照时间**必须是秒级**：只按「日」切分的话，当天 00:00 之后抽的记录会全部落进增量，
-> 而它们通常已经包含在你刚填的那个数里 → **重复计数**。（只填到「日」也允许，引擎按该日 `23:59:59` 处理。）
-
-### 每次导入会自动更新哪些数字
-
-需求就是「不用手工维护」——**凡是能用本地记录算出来的，都是实时的**：
-
-| 卡片 | 口径 |
-|---|---|
-| 总抽数 / 五星数 | 补填基准 ＋ 之后新增 |
-| 近期总抽数 | 本地全部导入记录（起点自动取最早一条） |
-| **出金率** | 导入记录里 五星数 ÷ 抽数，**剔除联动池**另给一个 |
-| **每 UP 角色需** | 角色池 **导入记录** 抽数、UP 次数 → `(抽数 − UP次数) ÷ UP次数` |
-| **每 UP 光锥需** | 光锥池 **导入记录** 抽数、UP 次数 → 同上口径 |
-| **小保底不歪 · 角色 / 光锥** | `(UP次数 − 歪的次数) ÷ UP次数`，分池独立统计（见下） |
-
-### 「小保底不歪」怎么数
-
-一次 UP 出金，要么是**小保底直接出**（上一个金不是这个池的 UP 角色/光锥 → 没歪），
-要么是**大保底**（之前歪过一次，这次必中）。所以：
-
-> 小保底不歪率 = (UP 次数 − 歪的次数) ÷ UP 次数
-
-角色池与光锥池**分开算**（两套保底互不影响）。卡片副标题会直写 `UP 30 次里 17 次小保底直接出（歪 13 次）`，
-数字能一眼对回去。
-
-> 口径说明：这是「按金数数」的算法，与工坊展示的一致；另一种「按时间顺序判每一次是小保底还是大保底」的算法
-> 在垫抽跨池交错时会给出不同结果，平台采用前一种。
-
-完整的 7 张卡口径写在 **「解释说明」第 7 章**（含每个数字的公式与来源）。
-
-> ⚠️ 截图补录的数据（`core/pools.js` 的 `HIST_ROWS` / `OTH`）**只用于「五星角色×专属光锥」与「五星光锥全览」**
-> 这两个模块的星魂 / 叠影推算，**不参与上面任何比率**，也**不随导入更新**。
->
-> ⚠️ **最容易写错的是「已垫 N 抽」**：截图补录里每个池都有一个「距离上一个五星之后垫了多少抽」，
-> 它直接加进池总量。写错 1 抽，总量就对不上（本账号曾把常驻跃迁的 51 写成 50，正好差 1 抽）。
-> 改这个值时必须用接口自算复核：**该池窗口内最后一个五星之后的记录条数**就是当前已垫抽数。
-
----
-
-## 外部统计补录（第三源）：把「真实持有状态」搬进来
-
-从抽卡记录反推的**星魂 / 叠影永远是下限** —— 接口只给窗口内那段，窗口外的金早就查不到了。
-但你的真实持有状态在别处到处都是：**游戏内的「角色 / 光锥」列表**、**星穹工坊的角色统计页**、**米游社 / HoyoLab 的抽卡统计**。
-这些渠道本来就有更完整的历史（第三方是长期累计在云端的），缺点是**只有命数、没有抽数**。
-
-所以平台把这一路单独收成**第三源**：
-
-**抓取与数据管理 → ⑤ 外部统计补录**（在「修改记录」下面）
-
-| 步骤 | 做什么 |
-|---|---|
-| ① 上传 | 把截图拖进上传区（可多选）。原图留档到 `data/uploads/`，方便事后回溯 |
-| ② 识别 | 在**你自己的浏览器里**跑图标检测 + 匹配，把确认表预填好（**全程离线，图片不出本机**） |
-| ③ 确认 | 逐行核对「图 / 类型 / 名字 / 星魂·叠影 / 分数」，错的手改、缺的用「＋ 手动加一行」补 |
-| ④ 保存 | 点「保存到角色管理」→ 写进 `data/external.json`，角色管理页立刻生效 |
-
-四条硬规则：
-
-- **语义 = 真值快照，覆盖旧值。** 与抽卡记录推算不一致时**以外部为准**，并在行内**显式标出冲突**
-  （引擎同时保留一份「抽卡推算值」，方便回头核对）。重传即**整体覆盖**，不是累加。
-- **单位按类型分：** 角色填**星魂等级 0~6**（0 = 只抽到过一个）；光锥填**叠影等级 1~5**（1 = 只有 1 张）。越界会被夹到边界。
-- **不参与任何抽数口径。** 总抽数 / 出金率 / 每 UP / 小保底不歪**一个都不受影响** —— 它只有命数没有抽数，
-  掺进去就没法自证。这条在**接口层就切开了**。
-- **识别不到是正常的。** 图标匹配要求截图里的图标和本机 `assets/` 是同一套原图；截图被裁过、加了水印、
-  套了活动主题皮肤，或者**那个角色本机的图标还没下载**（没抽到过的角色不会有本地图标），分数就会很低。
-  这时手动加行即可 —— 这一源的价值在于「有一份可信的持有状态」，不在于「全自动认图」。
-
-> 识别算法（`web/match.js`，浏览器端，零依赖）：灰度化 → 局部细节能量 → **阈值取连通域 → 紧包围盒**
-> → 每框缩放到 24×24 零均值单位化 → 与本地图标库做**归一化互相关 NCC**。
-> 其中最关键的坑是**取框**：框只要比图标大一圈，NCC 就彻底失去判别力（实测精确框 6/6 全对、分数 0.98+；
-> 放大到 1.5 倍就 6/6 全错）。所以包围盒之外还会**同时试缩小与放大**几档窗口倍数取全局最优。
-
----
-
-## 目录结构
+## Project layout
 
 ```
-崩铁抽卡分析平台/
-├── start.command          双击启动（UID 从 data/ 里读，脚本里没写死）
-├── .gitignore             排除 data/ 与游戏素材等
-├── LICENSE                MIT
-├── THIRD-PARTY.md         第三方组件与素材的授权与来源
-├── core/                  分析引擎（纯计算，输出 JSON）
-│   ├── pools.js           口径常量：6 类池 / 常驻名单（角色与光锥各一套）/ 64 组专属光锥
-│   ├── account.js         读取本账号历史（data/account.json），缺文件时优雅降级
-│   ├── analyze.js         全部分析逻辑 + 构建时断言（含三源合并）
-│   ├── external.js        第三源：外部统计补录的读写与校验
-│   ├── divination.js      八卦占卜引擎：起卦 / 变占 / 吉凶分档 / 保底数学推抽数
-│   ├── gua-data.js        ⚠️ 生成物：64 卦卦辞爻辞 + 小象传 + 爻吉凶标签（见 tools/build-gua-data.js）
-│   ├── gua-explain.js     64 卦主旨与 384 爻白话释义（本平台撰述，非原文）
-│   ├── zeri.js            择吉引擎：时家十二时辰 + 日家六维 + 区间打分排序
-│   ├── banner.js          ⚠️ 全平台唯一联网点：当期卡池日历（失败自动降级缓存 → 内置表）
-│   ├── huangli.js         万年历吉凶（日为主、时为辅）
-│   └── lunar.js           万年历引擎（6tail lunar-javascript，MIT）
-├── server/                本地服务（只监听 127.0.0.1）
-│   ├── server.js          HTTP 服务 + /api/*
-│   ├── fetch.js           抽卡链接抓取（双端点、退避重试）
-│   ├── store.js           数据仓（按 id 合并、快照留档、截图留档）
-│   └── icons.js           图标与索引自动更新
-├── web/                   前端（Vue 3，无构建）
-│   ├── index.html         首帧内联脚本在这里（先定主题再上样式，防闪白）
-│   ├── theme.css          ⭐ 四套主题的**全部**色值（语义 token，切换只改这里）
-│   ├── styles.css         结构样式，只引用 token，不写死颜色
-│   ├── app.js             外壳 + 左侧栏 + 主题切换器 + 悬浮回顶按钮
-│   ├── favicon.png        标签页图标（就是项目 logo）
-│   ├── match.js           浏览器端图标检测 + 匹配（模板匹配 / NCC）
-│   └── components/        各板块组件（shared / analysis / roles / divination / help / datamanager / importer）
-├── tools/                 辅助脚本
-│   ├── make-demo-data.js  生成一份虚构的演示数据（覆盖进 data/）
-│   ├── build-gua-data.js  三个开源数据集多数票构建 core/gua-data.js
-│   ├── verify-divination.js  占卜引擎蒙特卡洛对账
-│   ├── verify-banner.js      卡池日历 + 择日 + 离线降级验收
-│   └── shoot-help.js      用 CDP 无头 Chrome 重拍「解释说明」页的配图
-├── data/                  ⚠️ 整个目录都不入库（你的记录在这里）
-│   ├── records.json       全量抽卡记录（本地唯一数据源）
-│   ├── account.json       本账号历史：跨界金 / 截图补录的常驻与新手池 / 补填基准
-│   ├── meta.json          数据补填基准 / 修改记录 / 开关（起点已改为自动取最早记录）
-│   ├── external.json      第三源：外部统计补录结果（真值快照）
-│   ├── banner-cache.json  卡池日历缓存（TTL 6 小时，离线也能用）
-│   ├── uploads/           外部统计上传的截图留档
-│   └── snapshots/         每次抓取的原始快照
+star-rail-analysis/
+├── start.command            macOS launcher (reads your UID from data/, hard-codes nothing)
+├── LICENSE                  MIT
+├── THIRD-PARTY.md           Bundled components and asset sources
+├── core/                    Analysis engine — pure computation, JSON in and out
+│   ├── pools.js             Banner constants, standard 5★ rosters, 64 signature light cones
+│   ├── analyze.js           All analysis logic plus build-time assertions
+│   ├── account.js           Out-of-window per-account history; degrades gracefully if absent
+│   ├── external.js          Third source: manually entered stats
+│   ├── divination.js        Six-line casting, changing lines, fortune tiers, pity maths
+│   ├── gua-data.js          Generated: 64 hexagram and 384 line texts
+│   ├── gua-explain.js       Plain-language explanations (authored for this project)
+│   ├── zeri.js              Auspicious day / hour scoring
+│   ├── huangli.js           Chinese almanac (day-primary, hour-secondary)
+│   ├── banner.js            Banner calendar — the only networked module in core/
+│   └── lunar.js             Lunar calendar engine (6tail/lunar-javascript, MIT)
+├── server/                  Local HTTP server, bound to 127.0.0.1
+│   ├── server.js            Routes, static files, listen/port fallback
+│   ├── fetch.js             Warp fetcher: walks all six pools, per-type endpoint, backoff retry
+│   ├── store.js             Record store: merge by id, snapshot archive
+│   └── icons.js             Icon and index auto-update
+├── web/                     Front end — Vue 3, no build step
+│   ├── index.html           First-paint theme script lives in <head>
+│   ├── theme.css            Every colour of all four themes
+│   ├── styles.css           Layout; references tokens for all themable colours
+│   ├── app.js               Shell, sidebar, theme switcher
+│   ├── match.js             In-browser icon detection and NCC matching
+│   ├── favicon.png
+│   ├── vendor/              vue.global.prod.js — Vue 3 production build (MIT)
+│   └── components/          analysis · roles · divination · help · datamanage · importer · shared
+├── tools/
+│   ├── make-demo-data.js    Generate fictional demo data into data/
+│   ├── build-gua-data.js    Rebuild core/gua-data.js from three open datasets
+│   ├── verify-divination.js Monte-Carlo check of the divination engine
+│   ├── verify-banner.js     Banner calendar, date picking, offline fallback
+│   └── shoot-help.js        Re-shoot handbook screenshots via headless Chrome
+├── data/                    Your records — git-ignored in full
 └── assets/
-    ├── logo.png           项目 logo（紧致抠圆版，侧栏与 favicon 用）
-    ├── logo-glow.png      同款带光晕版（大尺寸展示用）
-    ├── avatar/            ⚠️ 角色头像（运行时自动下载，不入库）
-    ├── light_cone/        ⚠️ 光锥图标（运行时自动下载，不入库）
-    ├── index/             ⚠️ 名称 + 命途索引（运行时自动下载，不入库）
-    └── help/              「解释说明」页的配图（静态快照，用演示数据拍摄）
+    ├── logo.png             Project logo
+    ├── logo-glow.png        Same logo with its halo
+    ├── readme/              Screenshots used by this file (demo data)
+    ├── help/                Handbook screenshots (demo data)
+    └── avatar · light_cone · index/    Downloaded at runtime, never committed
 ```
 
-标 ⚠️ 的项目都不在仓库里。`data/` 是隐私，`assets/{avatar,light_cone,index}` 是米哈游的素材/解包数据（版权），
-而且平台本来就会自己下载，所以没必要随仓库分发。
+## Development
 
----
-
-## 口径与坑（都踩过，写在代码注释里）
-
-- **`gacha_id` 是「哪一池」的身份编号，不是时间区间。** 同一半期有两个并行卡池，来回抽时同一个
-  `gacha_id` 的记录会被切成不连续多段 → 必须按 `gacha_id` 归并。
-- **「池内第几抽」只能用本池自己的计数器**，不能用同类型池的全局序号相减（并行池交错会把别池抽数累进来，
-  是个静默错误）。代码里有全局断言兜底：任何池的池内序号不得超过该池总抽数。
-- **角色池与光锥池是两套不同的常驻名单**，绝不共用。
-- **星魂 = 三个来源里「抽到该角色的总金数 − 1」（上限 6）；叠影 = 总张数（上限 5）**。三个来源 =
-  接口窗口 ＋ 工坊截图补录 ＋ **外部统计补录**。第三源是**真值快照、覆盖前两源**（见上文专节），
-  且**只有命数没有抽数**，所以绝不参与任何比率口径。
-- **上游数据脏了不要往下猜**：外部统计里没在本地索引找到的名字会被**拒绝写入**并单独列出来（`bad` 列表），
-  不会污染 `data/external.json`。
-- **吉凶**按出金那一刻取万年历共有信息，**日为主、时为辅**（日黄道+时黄道=大吉 … 日黑道+时黑道=凶）。
-  同一天不同时辰结果不同，悬停徽章可看干支、建除、星宿与当日宜忌。
-- **全量抓取（200+ 请求）可能触发接口临时限流**，表现为连接直接失败（其他米哈游域名仍正常）——
-  不是 authkey 失效、也不是断网，退避到 45 秒量级重试即可恢复。
-
----
-
-## 数据备份
-
-整份数据就在 `data/records.json` 与 `data/snapshots/`，直接复制走即可。
-`data/` 目录删掉等于清空记录，但 `assets/` 会自动重新下载回来。
-
-⚠️ `data/` 里有你的 UID 与全部抽卡历史。**别在 `git add` 时用 `-f` 强行加进来**，
-`.gitignore` 已经把它整个排除了，交给自己新开的仓库时也留意别把它推上去。
-
----
-
-## 「解释说明」页的配图怎么更新
-
-配图是 `assets/help/*.png` 的**静态界面快照**，数据变了它们不会自动变。
-仓库里这一套是**用演示数据重拍的**（`node tools/make-demo-data.js` 造出来的那份），
-所以图里的 UID / 抽数 / 出金都是虚构的，可以放心公开。
-
-要自己重拍：先启动服务，然后跑
+No build step, no bundler, no test runner to install — the checks are plain Node scripts:
 
 ```bash
-node tools/shoot-help.js
+node tools/verify-divination.js   # casting probabilities, changing-line rules, fortune tiers
+node tools/verify-banner.js       # banner calendar parsing, date picking, offline fallback
 ```
 
-它用 CDP 协议驱动无头 Chrome，按页面元素裁剪（`Page.captureScreenshot` 的 `clip` 参数），
-十张图的取景分别是——`01` 抽卡总结示意图（**自绘的 HTML，不是任何第三方工具的界面截图**）/
-`02` 数据总貌卡片区（7 张）/ `03` 各卡池时间边界表 / `04` 当期卡池识别前几行 /
-`05` 展开的出金明细 / `06` 五星角色×专属光锥 / `07` 五星光锥全览 / `08` 数据管理抓取卡片 /
-`09` 数据补填卡片与修改记录 / `10` 外部统计补录卡片（含一次识别结果）。
+`verify-divination.js` runs standalone. `verify-banner.js` needs imported records in `data/records.json` **and** network access, so it exits early on a fresh clone or on demo data.
 
-> 拍这些图有三个坑，脚本里都处理了：
->
-> - 页面上的图标是 `loading="lazy"`，**必须先把整页滚一遍让图片进过视口**再量 `naturalWidth`，
->   否则量到的是「还没开始加载」而不是「加载失败」。
-> - `Page.captureScreenshot` 的 `clip` 用的是**页面绝对坐标**，`getBoundingClientRect()` 给的是视口坐标，
->   滚过页面之后必须 `+ window.scrollY`。
-> - `10` 那张是**合成图**演示：脚本在浏览器里画一张「角色列表」风格的图（从 `/api/iconlib` 随机取五星），
->   塞进文件输入等识别跑完再截卡片。图注里注明了「演示用的截图是合成的」，别当成真实账号截图。
->   ⚠️ 图标之间的间距要留够（脚本里是 `GAP = 46`）：挤在一起时相邻图标会被「连通域 → 紧包围盒」粘成一个大框，
->   裁剪结果里塞进两个头像，匹配自然全错。
+The handbook screenshots are re-shot with `tools/shoot-help.js`, a headless-Chrome script that drives the app over the DevTools Protocol. It needs **Node 22+** for the global `WebSocket` API.
 
----
+**A gotcha worth knowing if you write your own checks:** several pages use `loading="lazy"` images, so any automated pass must scroll the whole page before measuring them — otherwise it reads "not loaded yet" as "broken".
 
-## 授权
+## Notes and caveats
 
-- 本项目的代码以 **MIT** 许可发布，见 [`LICENSE`](LICENSE)。
-- 打包进来的第三方代码：`core/lunar.js`（[6tail/lunar-javascript](https://github.com/6tail/lunar-javascript)，MIT）、
-  `web/vendor/vue.global.prod.js`（[Vue 3](https://github.com/vuejs/core)，MIT）。
-- 角色头像 / 光锥图标 / 名称索引取自公开资源库 [Mar-7th/StarRailRes](https://github.com/Mar-7th/StarRailRes)，
-  **不随仓库分发**，由平台在导入记录时自动下载到 `assets/`。
-- 《崩坏：星穹铁道》的角色、光锥、美术素材与游戏数据版权归 **米哈游（miHoYo）** 所有。
-  本项目是**非官方**的个人工具，与米哈游无任何关联；抓取用的是玩家自己账号的官方接口凭证。
-- `assets/help/*.png` 是界面截图（用演示数据拍摄），画面里会包含上述游戏素材。
+- **`gacha_id` identifies *which banner*, not a time range.** Two banners run in parallel within one half-patch, so records for a single `gacha_id` can be split into several non-contiguous stretches. Always group by `gacha_id`.
+- **"Pull number within this banner" must use that banner's own counter.** Subtracting global indices of the same banner type silently mixes pulls from parallel banners. Build-time assertions guard this.
+- **The character and light cone rosters are two separate sets** and must never be merged.
+- **Two definitions of "total pulls" exist and must not be mixed.** *Total* is your manually entered baseline plus everything synced after it; *recent total* is simply every record in the local archive. **All ratios use the recent total**, because only that one has line-by-line evidence.
+- **The manual baseline is cut by exact timestamp, not by day.** A day-only value is treated as `23:59:59` of that day, otherwise pulls from the same day get counted twice.
+- **Two "did the 50/50 hold" algorithms always differ slightly** (counting by golds vs. walking chronologically). The app uses the by-golds method, matching the community reference tool. This is intentional, not a bug.
+- **Heavy fetching can trip rate limiting.** The symptom is connection failure to the API host while other miHoYo domains still work — it is not a dead `authkey` and not your network. Back off for ~45 seconds and retry.
 
-组件清单、各自版本与许可证全文见 [`THIRD-PARTY.md`](THIRD-PARTY.md)。
+## Credits & disclaimer
+
+- **Unofficial fan project.** *Honkai: Star Rail* and all related characters, light cones, artwork and game data are the property of **miHoYo / HoYoverse**. This project is not affiliated with, endorsed by, or associated with miHoYo. It is non-commercial and reads only the official endpoint using your own account credentials.
+- Bundled third-party code: [`core/lunar.js`](https://github.com/6tail/lunar-javascript) and [`web/vendor/vue.global.prod.js`](https://github.com/vuejs/core), both MIT. Full inventory in [`THIRD-PARTY.md`](THIRD-PARTY.md).
+- Character avatars, light cone icons and name indices come from the community resource repository [Mar-7th/StarRailRes](https://github.com/Mar-7th/StarRailRes). They are **not redistributed here**; the app downloads them when you import records.
+- Screenshots in `assets/help` and `assets/readme` are UI captures taken with fictional demo data. They necessarily show the game assets listed above.
+
+## License
+
+[MIT](LICENSE) — do what you like, no warranty.
+
+Found a bug or have an idea? Issues and pull requests are welcome.
