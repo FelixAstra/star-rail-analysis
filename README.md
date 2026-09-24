@@ -10,9 +10,10 @@ Pull rates, pity progress, and every limited 5★ you own — computed on your o
 <sub>Fictional demo data. The app runs entirely on <code>127.0.0.1</code> and uploads nothing.</sub>
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![CI](https://github.com/FelixAstra/star-rail-analysis/actions/workflows/ci.yml/badge.svg)](https://github.com/FelixAstra/star-rail-analysis/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/badge/download-zip-orange.svg)](https://github.com/FelixAstra/star-rail-analysis/releases/latest)
 [![Node](https://img.shields.io/badge/node-%E2%89%A518-3c873a.svg)](https://nodejs.org)
 [![Dependencies](https://img.shields.io/badge/runtime%20dependencies-0-success.svg)](#quick-start)
-[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey.svg)](#quick-start)
 
 </div>
 
@@ -36,7 +37,11 @@ Web-based warp trackers ask you to hand your `authkey` to a third-party server. 
 
 **Requirements:** [Node.js](https://nodejs.org) 18 or newer. That is the whole list — there is **no `npm install`**, because the project has zero runtime dependencies (Vue 3 and the lunar-calendar engine are vendored).
 
-**macOS**
+**No git? Grab the zip**
+
+Download [`star-rail-analysis.zip`](https://github.com/FelixAstra/star-rail-analysis/releases/latest/download/star-rail-analysis.zip), unzip it, and double-click the launcher inside (`start.command` on macOS, `start.bat` on Windows). It ships with an **empty** `data/` folder — your first import creates your archive.
+
+**macOS / Linux**
 
 ```bash
 git clone https://github.com/FelixAstra/star-rail-analysis.git
@@ -48,19 +53,25 @@ It starts a local server, opens your browser, and stops when you close the termi
 
 > On first launch macOS may refuse to open it ("unidentified developer"). Allow it once under **System Settings → Privacy & Security → Open Anyway**. `start.command` is a plain shell script — read it before you trust it.
 
-**Windows / Linux**
+**Windows**
 
-```bash
+```bat
 git clone https://github.com/FelixAstra/star-rail-analysis.git
 cd star-rail-analysis
-node server/server.js
+start.bat
 ```
 
-Then open the URL printed in the console (`http://127.0.0.1:8799/`; if that port is busy the server steps up to the next free one and writes the real port to `.port`).
+`start.bat` opens a console window, starts the server, launches your browser, and stops when you close that window. The launcher logic itself is cross-platform (`tools/launch.js`, fully exercised on macOS/Linux); the `.bat` wrapper is intentionally a few lines of plain batch, but it has **not yet been verified on a real Windows machine** — if it misbehaves, please open an issue, or fall back to:
+
+```bat
+node tools\launch.js
+```
+
+All platforms: the server prints its URL in the console (`http://127.0.0.1:8799/`; if that port is busy it steps up to the next free one and writes the real port to `.port`). The first launch downloads the game icon set (a few MB) in the background.
 
 ### Want to see it populated first?
 
-A fresh clone has no account data, so the screens are empty. Generate a fictional demo account:
+A fresh clone (or zip) has no account data, so the screens are empty. Generate a fictional demo account:
 
 ```bash
 node tools/make-demo-data.js
@@ -162,7 +173,9 @@ All colours live in **`web/theme.css`** as semantic tokens. `styles.css` and the
 
 ```
 star-rail-analysis/
-├── start.command            macOS launcher (reads your UID from data/, hard-codes nothing)
+├── start.command            macOS/Linux launcher (thin shell)
+├── start.bat                Windows launcher (thin shell, CRLF via .gitattributes)
+├── .github/workflows/       CI (syntax + engine assertions + boot smoke) and release (zip builder)
 ├── LICENSE                  MIT
 ├── THIRD-PARTY.md           Bundled components and asset sources
 ├── core/                    Analysis engine — pure computation, JSON in and out
@@ -192,6 +205,9 @@ star-rail-analysis/
 │   ├── vendor/              vue.global.prod.js — Vue 3 production build (MIT)
 │   └── components/          analysis · roles · divination · help · datamanage · importer · shared
 ├── tools/
+│   ├── launch.js            The actual launcher logic (both shells delegate here)
+│   ├── make-release-zip.js  Build the release zip from a clean git tree
+│   ├── ci-smoke.js          Boot the server on empty data and probe 8 endpoints
 │   ├── make-demo-data.js    Generate fictional demo data into data/
 │   ├── build-gua-data.js    Rebuild core/gua-data.js from three open datasets
 │   ├── verify-divination.js Monte-Carlo check of the divination engine
@@ -216,6 +232,8 @@ node tools/verify-banner.js       # banner calendar parsing, date picking, offli
 ```
 
 `verify-divination.js` runs standalone. `verify-banner.js` needs imported records in `data/records.json` **and** network access, so it exits early on a fresh clone or on demo data.
+
+CI (`.github/workflows/ci.yml`) runs on every push: a syntax check over every JS file, the divination engine assertions, and the boot smoke test (`tools/ci-smoke.js`, which exports a clean tree to a temp dir, starts the server on empty data, and probes eight endpoints). Pushing a `v*` tag additionally builds the release zip and publishes it via `.github/workflows/release.yml`.
 
 The handbook screenshots are re-shot with `tools/shoot-help.js`, a headless-Chrome script that drives the app over the DevTools Protocol. It needs **Node 22+** for the global `WebSocket` API.
 

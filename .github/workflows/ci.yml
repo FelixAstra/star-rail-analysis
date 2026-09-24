@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Syntax check all JS
+        run: |
+          status=0
+          while IFS= read -r f; do
+            node --check "$f" || status=1
+          done < <(git ls-files '*.js')
+          exit $status
+
+      - name: Divination engine assertions (offline, data-independent)
+        run: node tools/verify-divination.js
+
+      - name: Boot smoke test (empty data, 8 endpoints)
+        run: node tools/ci-smoke.js

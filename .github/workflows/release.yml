@@ -1,0 +1,44 @@
+name: Release
+
+# 推一个 v* tag → 跑完检查 → 构建 zip → 挂到 GitHub Release。
+# 产物名固定为 star-rail-analysis.zip，所以 README 里可以用
+# releases/latest/download/star-rail-analysis.zip 这个永久链接。
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Syntax check all JS
+        run: |
+          status=0
+          while IFS= read -r f; do
+            node --check "$f" || status=1
+          done < <(git ls-files '*.js')
+          exit $status
+
+      - name: Divination engine assertions (offline, data-independent)
+        run: node tools/verify-divination.js
+
+      - name: Boot smoke test (empty data, 8 endpoints)
+        run: node tools/ci-smoke.js
+
+      - name: Build release zip
+        run: node tools/make-release-zip.js dist/star-rail-analysis.zip
+
+      - name: Create release and upload zip
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/star-rail-analysis.zip
+          generate_release_notes: true

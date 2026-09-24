@@ -1,0 +1,14 @@
+# 行尾控制：批处理必须 CRLF（否则 cmd 解析出错），shell 脚本必须 LF。
+*.bat text eol=crlf
+*.command text eol=lf
+*.sh text eol=lf
+*.js text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.png binary
+*.jpg binary
+*.gif binary
+*.ico binary
