@@ -335,17 +335,27 @@ const server = http.createServer(async (req, res) => {
   serveStatic(req, res, pathname);
 });
 
+// ⚠️ 只能用模块级的 on('listening')，**千万不要把回调传给 listen()**。
+//    原因：EADDRINUSE 那一轮 'listening' 从未触发，传给 listen() 的回调
+//    会一直挂在监听器上；等回退到下一个端口真的起来时，一次 'listening'
+//    会把**每一轮**挂着的回调都唤醒一遍，于是先打出上一轮闭包里的旧端口
+//    （实测日志里同时出现「READY 8799」和「READY 8800」两行）。
+//    而 start.command 用 `grep -m1` 取第一行 → 默认端口若被别的程序占着，
+//    双击启动会打开**错误的端口**。这里改成读 server.address().port
+//    （真实绑定的端口）且只在模块级注册一次，从根上消除这个歧义。
 function listen(port, tries) {
   server.once('error', e => {
     if (e.code === 'EADDRINUSE' && tries > 0) { listen(port + 1, tries - 1); }
     else { console.error('启动失败：' + e.message); process.exit(1); }
   });
-  server.listen(port, '127.0.0.1', () => {
-    const u = 'http://127.0.0.1:' + port + '/';
-    console.log('READY ' + u);
-    fs.writeFileSync(path.join(ROOT, '.port'), String(port));
-  });
+  server.listen(port, '127.0.0.1');
 }
+
+server.on('listening', () => {
+  const port = server.address().port;
+  console.log('READY http://127.0.0.1:' + port + '/');
+  fs.writeFileSync(path.join(ROOT, '.port'), String(port));
+});
 
 // ── 兜底：单个请求出错不该把整个服务带走 ────────────────────────────────────
 // ⚠️ 这是个常驻的本地服务，Node ≥15 里**未处理的 Promise rejection 会直接 FATAL 进程**
