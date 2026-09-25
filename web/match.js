@@ -265,26 +265,26 @@
     const onP = o.onProgress || (() => {});
     const t0 = performance.now();
 
-    onP('读入图片…', 2);
+    onP(W.I18N.t('读入图片…'), 2);
     const url = URL.createObjectURL(file);
     const img = await new Promise((res, rej) => {
       const im = new Image();
-      im.onload = () => res(im); im.onerror = () => rej(new Error('这张图读不出来（可能不是图片，或者格式不支持）'));
+      im.onload = () => res(im); im.onerror = () => rej(new Error(W.I18N.t('这张图读不出来（可能不是图片，或者格式不支持）')));
       im.src = url;
     });
     const natW = img.naturalWidth, natH = img.naturalHeight;
     const scale = Math.min(1, WORK_LONG / Math.max(natW, natH));
     const w = Math.max(32, Math.round(natW * scale)), h = Math.max(32, Math.round(natH * scale));
 
-    onP('灰度化 ' + natW + '×' + natH + ' → 工作尺寸 ' + w + '×' + h + '…', 8);
+    onP(W.I18N.t('灰度化 {a} → 工作尺寸 {b}…', { a: natW + '×' + natH, b: w + '×' + h }), 8);
     const gray = grayOf(img, w, h);
 
-    onP('检测图标位置…', 18);
+    onP(W.I18N.t('检测图标位置…'), 18);
     const boxes = detectBoxes(gray, w, h, sens);
 
     // 只保留合理尺寸的框（太小的碎片、占满整屏的整块都丢掉）
     const cand = boxes.filter(b => b.s >= 26 && b.s <= Math.min(w, h) * 0.9).slice(0, MAX_CAND);
-    onP('检出 ' + cand.length + ' 个候选区域，准备比对图标库…', 30);
+    onP(W.I18N.t('检出 {n} 个候选区域，准备比对图标库…', { n: cand.length }), 30);
 
     // 预生成图标库特征
     const items = [];
@@ -300,15 +300,15 @@
       });
       if (!im) { it.vec = null; continue; }
       it.vec = toVector(grayOf(im, N, N), INSET);
-      if (++done % 12 === 0) onP('载入图标库 ' + done + '/' + pool.length + '…', 30 + Math.round(done / pool.length * 25));
+      if (++done % 12 === 0) onP(W.I18N.t('载入图标库 {d}/{n}…', { d: done, n: pool.length }), 30 + Math.round(done / pool.length * 25));
     }
     const lib2 = pool.filter(x => x.vec);
 
-    onP('逐个候选区域做匹配（' + cand.length + ' × ' + lib2.length + '）…', 58);
+    onP(W.I18N.t('逐个候选区域做匹配（{a} × {b}）…', { a: cand.length, b: lib2.length }), 58);
     const rows = [];
     for (let i = 0; i < cand.length; i++) {
       const b = cand[i];
-      if (i % 6 === 0) onP('匹配中 ' + (i + 1) + '/' + cand.length + '…', 58 + Math.round(i / cand.length * 36));
+      if (i % 6 === 0) onP(W.I18N.t('匹配中 {i}/{n}…', { i: i + 1, n: cand.length }), 58 + Math.round(i / cand.length * 36));
       let best = null;
       // 框的松紧不确定 → 试几档窗口倍数，取全局最优
       for (const mul of WIN_MUL) {
@@ -342,7 +342,7 @@
       final.push(r);
     }
     URL.revokeObjectURL(url);
-    onP('完成：' + final.length + ' 个区域有识别结果', 100);
+    onP(W.I18N.t('完成：{n} 个区域有识别结果', { n: final.length }), 100);
     return {
       rows: final, boxes: cand,
       meta: {

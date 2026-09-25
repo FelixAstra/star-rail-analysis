@@ -79,7 +79,7 @@
           a.value = j;
           err.value = '';
         } catch (e) {
-          err.value = '读分析结果失败：' + e.message;
+          err.value = W.I18N.t('读分析结果失败：') + e.message;
         } finally { loading.value = false; }
       };
 
@@ -88,50 +88,61 @@
         window.addEventListener('scroll', onScroll, { passive: true });
         // 内联脚本已设过一次；这里再对齐一回，防止 <html> 上的值与内存状态不一致
         document.documentElement.setAttribute('data-theme', theme.value);
+        W.I18N.setLang(W.I18N.lang.value);
       });
       onUnmounted(() => window.removeEventListener('scroll', onScroll));
-      return { NAV, page, goto, a, loading, err, load, showTop, toTop, theme, THEMES, setTheme };
+      return { NAV, page, goto, a, loading, err, load, showTop, toTop, theme, THEMES, setTheme, lang: W.I18N.lang, setLang: W.I18N.setLang };
     },
     template: `
     <div class="app">
       <aside class="side">
         <div class="brand">
-          <img class="logo" src="/assets/logo.png" alt="崩铁抽卡分析" width="34" height="34">
-          <div><div class="bt">崩铁抽卡分析</div><div class="bs">本地工作台</div></div>
+          <img class="logo" src="/assets/logo.png" :alt="t('崩铁抽卡分析')" width="34" height="34">
+          <div><div class="bt">{{ t('崩铁抽卡分析') }}</div><div class="bs">{{ t('本地工作台') }}</div></div>
         </div>
         <template v-for="grp in NAV" :key="grp.g">
-          <div class="grp">{{ grp.g }}</div>
+          <div class="grp">{{ t(grp.g) }}</div>
           <button v-for="it in grp.items" :key="it.k" class="navi"
                   :class="{ on: page === it.k }" :disabled="it.todo"
                   @click="goto(it.k)">
-            <span class="ic">{{ it.ic }}</span>{{ it.name }}
-            <span class="tag" v-if="it.todo">待开发</span>
+            <span class="ic">{{ it.ic }}</span>{{ t(it.name) }}
+            <span class="tag" v-if="it.todo">{{ t('待开发') }}</span>
           </button>
         </template>
         <div class="sfoot">
           <!-- 主题切换：四套配色定义在 web/theme.css，这里只切 <html data-theme> -->
           <div class="thm">
-            <span class="thm-h">主题</span>
+            <span class="thm-h">{{ t('主题') }}</span>
             <div class="thm-g">
-              <button v-for="t in THEMES" :key="t.k" type="button"
-                      class="thm-b" :class="[{ on: theme === t.k }, 'sw-' + t.k]"
-                      :title="t.tip" :aria-pressed="theme === t.k" @click="setTheme(t.k)">
-                <i class="thm-sw"></i><span>{{ t.n }}</span>
+              <button v-for="th in THEMES" :key="th.k" type="button"
+                      class="thm-b" :class="[{ on: theme === th.k }, 'sw-' + th.k]"
+                      :title="t(th.tip)" :aria-pressed="theme === th.k" @click="setTheme(th.k)">
+                <i class="thm-sw"></i><span>{{ t(th.n) }}</span>
+              </button>
+            </div>
+          </div>
+          <div class="thm">
+            <span class="thm-h">{{ t('语言') }}</span>
+            <div class="thm-g">
+              <button v-for="lg in ['zh','en']" :key="lg" type="button"
+                      class="thm-b thm-lg" :class="{ on: lang === lg }"
+                      :aria-pressed="lang === lg" @click="setLang(lg)">
+                <span class="lg-native">{{ lg === 'zh' ? '中文' : 'English' }}</span>
               </button>
             </div>
           </div>
           UID <b>{{ a ? a.uid : '—' }}</b><br>
-          数据只存本机 <code>data/</code><br>
-          除下方一处外，界面与算法全部离线<br>
-          <span class="sfoot-net" title="只有卡池日历一项会联网，且失败自动降级到本地缓存 / 内置表">唯一联网点：卡池日历</span>
+          {{ t('数据只存本机') }} <code>data/</code><br>
+          {{ t('除下方一处外，界面与算法全部离线') }}<br>
+          <span class="sfoot-net" :title="t('只有卡池日历一项会联网，且失败自动降级到本地缓存 / 内置表')">{{ t('唯一联网点：卡池日历') }}</span>
         </div>
       </aside>
 
       <main class="main">
-        <div v-if="loading" class="wrap"><div class="note">正在读取本地抽卡数据…</div></div>
+        <div v-if="loading" class="wrap"><div class="note">{{ t('正在读取本地抽卡数据…') }}</div></div>
         <div v-else-if="err" class="wrap"><div class="note badge-bad">{{ err }}</div></div>
         <div v-else-if="!a || a.empty" class="wrap">
-          <w-empty msg="本地还没有抽卡记录" hint="去左侧的「抓取与数据管理」粘贴一条抽卡链接，抓一次就有了。"></w-empty>
+          <w-empty :msg="t('本地还没有抽卡记录')" :hint="t('去左侧的「抓取与数据管理」粘贴一条抽卡链接，抓一次就有了。')"></w-empty>
         </div>
         <template v-else>
           <w-analysis-page v-if="page === 'analysis'" :a="a"></w-analysis-page>
@@ -144,7 +155,7 @@
       </main>
 
       <button type="button" class="fab" :class="{ show: showTop }" :tabindex="showTop ? 0 : -1"
-              aria-label="回到顶部" title="回到顶部" @click="toTop">
+              :aria-label="t('回到顶部')" :title="t('回到顶部')" @click="toTop">
         <svg class="fab-svg" viewBox="0 0 32 32" aria-hidden="true">
           <path d="M2.5 26.6c5.4 0 7.2-3.1 13.5-3.1s8.1 3.1 13.5 3.1" fill="none"
                 stroke="#5b4318" stroke-opacity=".38" stroke-width="1.5" stroke-linecap="round"/>
@@ -164,6 +175,21 @@
 
   const app = createApp(App);
   app.provide('goto', goto);
+  // 全局混入：所有组件模板里可直接用 t() / n() / L() / guaEn()
+  // （t/n 内部读 W.I18N.lang 这个 reactive ref → 切语言时所有用到它们的模板自动重渲染）
+  const I = W.I18N;
+  app.mixin({
+    methods: {
+      t: I.t, n: I.n, L: I.L, guaEn: I.guaEn,
+      // 数据来源文案：引擎给的是 srcKeys（win/hist/ext），按语言拼
+      srcTx(keys) {
+        const zh = { win: '接口窗口', hist: '截图补录', ext: '外部统计' };
+        const en = { win: 'API window', hist: 'Screenshot backfill', ext: 'External stats' };
+        const m = I.lang.value === 'en' ? en : zh;
+        return (keys && keys.length ? keys.map(k => m[k] || k) : [m.hist]).join(' + ');
+      },
+    },
+  });
   app.component('w-pull-tag', W.PullTag);
   app.component('w-alm-badge', W.AlmBadge);
   app.component('w-item-card', W.ItemCard);

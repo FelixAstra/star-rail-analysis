@@ -17,7 +17,7 @@ Pull rates, pity progress, and every limited 5★ you own — computed on your o
 
 </div>
 
-> **The app UI is in Simplified Chinese.** This README, the code and the CLI are in English.
+> **The app UI ships in Simplified Chinese and English**, switchable from the bottom of the sidebar and remembered across sessions. This README, the code and the CLI are in English.
 >
 > **Unofficial fan project.** Not affiliated with or endorsed by miHoYo / HoYoverse. It reads the official endpoint using your own account credentials, nothing more — see [Credits & disclaimer](#credits--disclaimer).
 
@@ -135,7 +135,7 @@ The runtime is quiet too: the server **listens only on `127.0.0.1`**, and makes 
 
 ## What's inside
 
-Five pages, organised in the sidebar. The UI is Simplified Chinese; the English names below are for orientation only.
+Five pages, organised in the sidebar. Both language names are given, because the UI ships in both — the Chinese label in brackets is what the default build shows.
 
 | Page | What it does |
 |---|---|
@@ -146,6 +146,16 @@ Five pages, organised in the sidebar. The UI is Simplified Chinese; the English 
 | **Handbook** (解释说明) | Nine chapters explaining where every number comes from and how it is defined, with annotated screenshots |
 
 Deep methodology deliberately lives in the **Handbook**, not here — a README should not be a manual.
+
+### Languages
+
+The interface ships in **Simplified Chinese and English**; the switcher sits at the bottom of the sidebar and the choice is kept in `localStorage`. English character and light cone names are taken from **miHoYo's own English localisation**, not from a translator.
+
+- **Short labels** live in a keyed dictionary (`web/i18n.dict.js`) whose keys *are* the Chinese source strings. The Chinese build never consults the table, so it cannot miss an entry, and an untranslated string can only ever fall back to Chinese rather than to an empty line.
+- **Long-form prose** — the handbook's nine chapters — is written as paired Chinese/English strings side by side in the component, because a file of two hundred paragraph-long keys is harder to keep honest than two adjacent lines.
+- **The divination page keeps its classical Chinese.** Hexagram names, judgements, line texts and almanac terms are shown as they are, since the English equivalents are scholarly translations rather than the thing itself. Each hexagram carries the standard Legge/Wilhelm name as a finding aid.
+
+The two layers are checked by machine, not by eye. `tools/check-i18n.js` is static: it walks the source for dictionary keys and paired strings and fails on a missing entry, a mismatched `{placeholder}`, or Chinese left inside a translation. `tools/verify-i18n.js` is runtime: it drives a headless Chrome through all five pages in both languages and fails if Chinese turns up outside the regions that are meant to keep it.
 
 ### Divination
 
@@ -198,6 +208,8 @@ star-rail-analysis/
 ├── web/                     Front end — Vue 3, no build step
 │   ├── index.html           First-paint theme script lives in <head>
 │   ├── theme.css            Every colour of all four themes
+│   ├── i18n.js              Language switch: t() / L() / official English names / <html data-lang>
+│   ├── i18n.dict.js         English dictionary for short labels, keyed by the Chinese source string
 │   ├── styles.css           Layout; references tokens for all themable colours
 │   ├── app.js               Shell, sidebar, theme switcher
 │   ├── match.js             In-browser icon detection and NCC matching
@@ -212,6 +224,9 @@ star-rail-analysis/
 │   ├── build-gua-data.js    Rebuild core/gua-data.js from three open datasets
 │   ├── verify-divination.js Monte-Carlo check of the divination engine
 │   ├── verify-banner.js     Banner calendar, date picking, offline fallback
+│   ├── check-i18n.js        Static bilingual coverage check (runs in CI)
+│   ├── verify-i18n.js       Headless-Chrome check for strings left untranslated on screen
+│   ├── lib/i18n-keys.js     Shared scanners for t('…') keys and L(zh, en) pairs
 │   └── shoot-help.js        Re-shoot handbook screenshots via headless Chrome
 ├── data/                    Your records — git-ignored in full
 └── assets/
@@ -229,11 +244,12 @@ No build step, no bundler, no test runner to install — the checks are plain No
 ```bash
 node tools/verify-divination.js   # casting probabilities, changing-line rules, fortune tiers
 node tools/verify-banner.js       # banner calendar parsing, date picking, offline fallback
+node tools/check-i18n.js          # bilingual coverage: dictionary keys, placeholders, paired strings
 ```
 
-`verify-divination.js` runs standalone. `verify-banner.js` needs imported records in `data/records.json` **and** network access, so it exits early on a fresh clone or on demo data.
+`verify-divination.js` and `check-i18n.js` run standalone. `verify-banner.js` needs imported records in `data/records.json` **and** network access, so it exits early on a fresh clone or on demo data. `verify-i18n.js` needs the app already running (`node server/server.js`) plus a local Chrome, and accepts `--list` to dump what it found or `--shots` to save screenshots.
 
-CI (`.github/workflows/ci.yml`) runs on every push: a syntax check over every JS file, the divination engine assertions, and the boot smoke test (`tools/ci-smoke.js`, which exports a clean tree to a temp dir, starts the server on empty data, and probes eight endpoints). Pushing a `v*` tag additionally builds the release zip and publishes it via `.github/workflows/release.yml`.
+CI (`.github/workflows/ci.yml`) runs on every push: a syntax check over every JS file, the divination engine assertions, the bilingual coverage check, and the boot smoke test (`tools/ci-smoke.js`, which exports a clean tree to a temp dir, starts the server on empty data, and probes eight endpoints). Pushing a `v*` tag additionally builds the release zip and publishes it via `.github/workflows/release.yml`.
 
 The handbook screenshots are re-shot with `tools/shoot-help.js`, a headless-Chrome script that drives the app over the DevTools Protocol. It needs **Node 22+** for the global `WebSocket` API.
 

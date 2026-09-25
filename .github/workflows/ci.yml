@@ -26,5 +26,8 @@ jobs:
       - name: Divination engine assertions (offline, data-independent)
         run: node tools/verify-divination.js
 
+      - name: i18n coverage (zh + en)
+        run: node tools/check-i18n.js
+
       - name: Boot smoke test (empty data, 8 endpoints)
         run: node tools/ci-smoke.js

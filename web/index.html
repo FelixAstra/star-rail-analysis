@@ -13,6 +13,13 @@
   var K = 'sr.theme', OK = ['vivid', 'light', 'dark', 'glass'], t = 'vivid';
   try { var v = localStorage.getItem(K); if (OK.indexOf(v) >= 0) t = v; } catch (e) {}
   document.documentElement.setAttribute('data-theme', t);
+  // 语言与主题同理：首帧之前就定下来，en 模式的排版微调靠 [data-lang]
+  var L = 'zh';
+  try { var l = localStorage.getItem('sr.lang'); if (l === 'en') L = 'en'; } catch (e) {}
+  document.documentElement.setAttribute('data-lang', L);
+  document.documentElement.setAttribute('lang', L === 'en' ? 'en' : 'zh-CN');
+  // 标题也跟语言走（i18n.js 里 applyLang() 会再对齐一次，这里只为省掉一次闪动）
+  document.title = L === 'en' ? 'Honkai: Star Rail Warp Analysis' : '崩铁抽卡分析工作台';
 })();
 </script>
 <!-- theme.css 必须**先于** styles.css：前者只定义 token，后者只用 token -->
@@ -24,6 +31,10 @@
 
 <!-- Vue 3（本地 vendor，无构建、无 npm 依赖） -->
 <script src="vendor/vue.global.prod.js"></script>
+
+<!-- 双语层：词典 → 机制，顺序不能颠倒（i18n.js 直接读 W.DICT_EN） -->
+<script src="i18n.dict.js"></script>
+<script src="i18n.js"></script>
 
 <!-- 组件：先共用小组件，再各页面，最后是外壳（按依赖顺序加载） -->
 <script src="match.js"></script>

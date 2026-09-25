@@ -34,6 +34,7 @@ const TZ = 'Asia/Hong_Kong';
 // 日历接口固化，也可以手改 —— 手改时**必须**写清来源，别让数字变成无源之水。
 const BUILTIN = {
   note: '内置兜底表（离线时使用，可能过期；以游戏内公告为准）',
+  noteEn: 'Built-in fallback table (used offline and possibly out of date; the in-game notice wins)',
   banners: [
     { version: '4.5', half: '下半', start: '2026-09-12 12:00', end: '2026-09-28 03:59',
       upChars: ['砂金•戏浪', '不死途'], upCones: ['向浪花掷下盛夏', '一场谎言的终幕'] },
@@ -297,6 +298,8 @@ async function calendar(o) {
     //    bnCalibrated 判断后自己追一句。写在这里会在同一张卡上出现两遍。
     note: '卡池起止来自第三方日历（ennead.cc），非官方接口。开池固定在中午 12:00，' +
           '结束多在凌晨 03:59。如与游戏内公告不符，以游戏内为准。',
+    noteEn: 'Banner start and end come from a third-party calendar (ennead.cc), not an official endpoint. '
+          + 'Banners open at 12:00 noon and mostly close at 03:59; if this disagrees with the in-game notice, the game wins.',
     origin: '数据源：api.ennead.cc/mihoyo/starrail/calendar',
   };
 }

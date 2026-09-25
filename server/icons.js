@@ -78,8 +78,11 @@ async function refreshIndex(onLog) {
   //    直接 writeFileSync 会 ENOENT 被 catch 吞掉，表现成「索引更新失败」而其实是没目录。
   ensureAssetDirs();
   const out = [];
+  // cn + en 一起更新：en 索引是官方英文名的唯一来源（界面切到 English 时按 id 对照显示官方英文）
   for (const [remote, local] of [['index_min/cn/characters.json', 'cn_characters.json'],
-                                 ['index_min/cn/light_cones.json', 'cn_light_cones.json']]) {
+                                 ['index_min/cn/light_cones.json', 'cn_light_cones.json'],
+                                 ['index_min/en/characters.json', 'en_characters.json'],
+                                 ['index_min/en/light_cones.json', 'en_light_cones.json']]) {
     try {
       const buf = await download(BASE + '/' + remote);
       const j = JSON.parse(buf.toString('utf8'));

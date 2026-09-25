@@ -352,6 +352,8 @@ function analyze(opts) {
             calc: calcV, ext: x.ext.v,
             calcFrom: '接口窗口 ' + x.win.length + ' ＋ 截图补录 ' + x.hist.length
               + '（合计 ' + calcN + ' 金 → ' + (extKind === 'ch' ? '星魂 ' + calcRank : '叠影 ' + calcSup) + '）',
+            calcFromEn: 'API window ' + x.win.length + ' + screenshot backfill ' + x.hist.length
+              + ' (' + calcN + ' 5★ total → ' + (extKind === 'ch' ? 'Eidolon ' + calcRank : 'Superimposition ' + calcSup) + ')',
           });
         }
       }
@@ -370,8 +372,12 @@ function analyze(opts) {
         src: srcKeys.join('+') || 'hist',
         // 数据来源那一行补一句池名：只有联动池的角色才标，避免整页噪音
         poolMark: (() => {
-          const n = x.win.filter(g => isLd(g.gt)).length;
-          return n ? (n === x.win.length ? ' · 联动池' : ' · 含联动池') : '';
+          const m = x.win.filter(g => isLd(g.gt)).length;
+          return m ? (m === x.win.length ? ' · 联动池' : ' · 含联动池') : '';
+        })(),
+        poolMarkEn: (() => {
+          const m = x.win.filter(g => isLd(g.gt)).length;
+          return m ? (m === x.win.length ? ' · collab-only' : ' · incl. collab') : '';
         })(),
       };
     });
@@ -388,20 +394,26 @@ function analyze(opts) {
   const missCone = U5C.filter(c => SIG[c.id] && !u5lById.has(SIG[c.id])).length;
 
   // 角色卡的抽数标签：接口的彩底（UP 绿 / 歪 红 / 常驻 灰），联动单列紫，截图段虚线框
+  // titleEn 只给英文模式的悬浮提示（内容本身是成对口径，翻「壳」不翻数据）
   const cWin = g => isLd(g.gt)
-    ? { cls: 'ld', num: g.pity, tag: '联动', title: P.POOL[g.gt] + '（走 getLdGachaLog 端点，数据来源与普通池不同）' }
+    ? { cls: 'ld', num: g.pity, tag: '联动', title: P.POOL[g.gt] + '（走 getLdGachaLog 端点，数据来源与普通池不同）',
+        titleEn: P.POOL_EN[g.gt] + ' (fetched via the separate getLdGachaLog endpoint)' }
     : { cls: g.up === true ? 'up' : (g.up === false ? 'off' : 'std'), num: g.pity,
         tag: g.up === true ? 'UP' : (g.up === false ? '歪' : '常驻'), title: '' };
   const cHist = h => h.pool
-    ? { cls: 'h std', num: h.num, tag: h.pool, title: h.src + '（工坊截图补录，非链接解析）' }
-    : { cls: 'h ' + (h.wai ? 'off' : 'up'), num: h.num, tag: h.wai ? '歪' : 'UP', title: h.src + '（工坊截图补录，非链接解析）' };
+    ? { cls: 'h std', num: h.num, tag: h.pool, title: h.src + '（工坊截图补录，非链接解析）',
+        titleEn: 'Workshop screenshot backfill — not parsed from the API link' }
+    : { cls: 'h ' + (h.wai ? 'off' : 'up'), num: h.num, tag: h.wai ? '歪' : 'UP', title: h.src + '（工坊截图补录，非链接解析）',
+        titleEn: 'Workshop screenshot backfill — not parsed from the API link' };
 
   const U5C_VIEW = U5C.map(c => {
     const lcId = SIG[c.id] || '';
     const lc = lcId ? u5lById.get(lcId) : null;
     return {
       id: c.id, name: c.name, path: c.path, pathCn: PATH_CN[c.path] || c.path,
-      rank: c.rank, copies: c.copies, srcText: srcTextOf(c.srcKeys), poolMark: c.poolMark,
+      rank: c.rank, copies: c.copies, srcText: srcTextOf(c.srcKeys),
+      // ⚠️ poolMark / poolMarkEn 必须**成对**带出去：漏一个，英文态就会露出「· 联动池」
+      poolMark: c.poolMark, poolMarkEn: c.poolMarkEn,
       tags: c.win.map(cWin).concat(c.hist.map(cHist)),
       // 第三源的标记：卡片上要能看出「这个命数是外部统计给的」，以及抽卡推算值是多少（不一致时页面提示）
       hasExt: c.hasExt, extAt: c.extAt, extScore: c.extScore,
@@ -409,6 +421,7 @@ function analyze(opts) {
       conflict: c.hasExt && c.rank !== c.calcRank,
       lcId, lcName: lcId ? (LC_IDX[lcId] ? LC_IDX[lcId].name : '') : '',
       lcOwned: !!lc, lcSup: lc ? lc.sup : 0, lcCopies: lc ? lc.copies : 0,
+      lcSrcKeys: lc ? lc.srcKeys : [],
       lcSrcText: lc ? srcTextOf(lc.srcKeys) : '',
       lcHasExt: lc ? lc.hasExt : false, lcCalcSup: lc ? lc.calcSup : 0,
       lcConflict: lc ? (lc.hasExt && lc.sup !== lc.calcSup) : false,
@@ -583,25 +596,35 @@ function analyze(opts) {
     uid: meta.uid || loaded.meta.uid || '',
     generatedAt: new Date().toISOString(),
     generatedAtLocal: new Date().toLocaleString('zh-CN', { hour12: false }),
+    generatedAtLocalEn: new Date().toLocaleString('en-GB', { hour12: false }),
     dataRange: { from: list[0].time, to: list[list.length - 1].time, total: list.length },
     poolNames: P.POOL, poolShort: P.POOL_SHORT, hard: P.HARD, ldTypes: P.LD_TYPES,
 
     overview: {
+      // key/sub（中文）与 keyEn/subEn（英文）成对产出：页面按语言二选一（L()）。
+      // 英文只翻「壳」，数字与口径原样保留 —— 口径变了两边必须同步改。
       stats: [
-        { key: '总抽数', value: TOT_P, cls: 'purple',
-          sub: '数据补填的基准时刻 <b>' + esc(WS_AT) + '</b> · ' + (INC_P ? '之后新导入 +' + INC_P + ' 抽' : '暂无晚于它的新记录') + ' · 账号全部历史口径' },
-        { key: '近期总抽数', value: REC_P, cls: 'cyan',
-          sub: '＝ 本地仓全部导入记录 · 起点 <b>' + RECENT_FROM + '</b>（自动取最早一条、不可改）· 角色 ' + recOf('11') + ' / 光锥 ' + recOf('12') + ' / 常驻 ' + recOf('1') + ' / 联动 ' + (recOf('21') + recOf('22')) },
-        { key: '出金率', value: (REC_G / REC_P * 100).toFixed(2) + '%', cls: 'gold',
-          sub: '本地 <b>' + REC_P + '</b> 抽出 <b>' + REC_G + '</b> 金（含联动 ' + REC_LD.length + ' 抽 / ' + REC_LD.filter(r => r.rank_type === '5').length + ' 金）· 剔除联动后 ' + RECN_P + ' 抽 / ' + RECN_G + ' 金 = ' + RECN_RATE + '% · 工坊全量 ' + (TOT_G / TOT_P * 100).toFixed(2) + '%' },
-        { key: '每 UP 角色需', value: perUpCh + '<span class="u"> 抽</span>', cls: 'green',
-          sub: '角色池记录 <b>' + n11 + '</b> 抽 ÷ UP <b>' + linkChUp + '</b> 次 · 口径 (' + n11 + '−' + linkChUp + ')÷' + linkChUp },
-        { key: '每 UP 光锥需', value: perUpLc + '<span class="u"> 抽</span>', cls: 'purple',
-          sub: '光锥池记录 <b>' + n12 + '</b> 抽 ÷ UP <b>' + linkLcUp + '</b> 次 · 口径 (' + n12 + '−' + linkLcUp + ')÷' + linkLcUp },
-        { key: '小保底不歪 · 角色', value: smallCh.rate + '<span class="u">%</span>', cls: 'gold',
-          sub: '角色池 UP <b>' + smallCh.up + '</b> 次里 <b>' + smallCh.direct + '</b> 次小保底直接出（歪 ' + smallCh.off + ' 次）' + (smallCh.pending ? ' · ⚠️ 末次出金是歪、尚未兑现' : '') },
-        { key: '小保底不歪 · 光锥', value: smallLc.rate + '<span class="u">%</span>', cls: 'green',
-          sub: '光锥池 UP <b>' + smallLc.up + '</b> 次里 <b>' + smallLc.direct + '</b> 次小保底直接出（歪 ' + smallLc.off + ' 次）' + (smallLc.pending ? ' · ⚠️ 末次出金是歪、尚未兑现' : '') },
+        { key: '总抽数', keyEn: 'Total Warps', value: TOT_P, cls: 'purple',
+          sub: '数据补填的基准时刻 <b>' + esc(WS_AT) + '</b> · ' + (INC_P ? '之后新导入 +' + INC_P + ' 抽' : '暂无晚于它的新记录') + ' · 账号全部历史口径',
+          subEn: 'Backfill base at <b>' + esc(WS_AT) + '</b> · ' + (INC_P ? '+' + INC_P + ' warps imported since' : 'no newer records yet') + ' · full-lifetime scope' },
+        { key: '近期总抽数', keyEn: 'Recent Warps', value: REC_P, cls: 'cyan',
+          sub: '＝ 本地仓全部导入记录 · 起点 <b>' + RECENT_FROM + '</b>（自动取最早一条、不可改）· 角色 ' + recOf('11') + ' / 光锥 ' + recOf('12') + ' / 常驻 ' + recOf('1') + ' / 联动 ' + (recOf('21') + recOf('22')),
+          subEn: '= all locally imported records · start <b>' + RECENT_FROM + '</b> (auto-pinned to the earliest record) · Character ' + recOf('11') + ' / LC ' + recOf('12') + ' / Standard ' + recOf('1') + ' / Collab ' + (recOf('21') + recOf('22')) },
+        { key: '出金率', keyEn: '5★ Rate', value: (REC_G / REC_P * 100).toFixed(2) + '%', cls: 'gold',
+          sub: '本地 <b>' + REC_P + '</b> 抽出 <b>' + REC_G + '</b> 金（含联动 ' + REC_LD.length + ' 抽 / ' + REC_LD.filter(r => r.rank_type === '5').length + ' 金）· 剔除联动后 ' + RECN_P + ' 抽 / ' + RECN_G + ' 金 = ' + RECN_RATE + '% · 工坊全量 ' + (TOT_G / TOT_P * 100).toFixed(2) + '%',
+          subEn: 'Local: <b>' + REC_P + '</b> warps → <b>' + REC_G + '</b> 5★ (incl. collab ' + REC_LD.length + ' warps / ' + REC_LD.filter(r => r.rank_type === '5').length + ' 5★) · excl. collab ' + RECN_P + ' / ' + RECN_G + ' = ' + RECN_RATE + '% · full-lifetime ' + (TOT_G / TOT_P * 100).toFixed(2) + '%' },
+        { key: '每 UP 角色需', keyEn: 'Warps per UP Character', value: perUpCh + '<span class="u"> 抽</span>', valueEn: perUpCh + '<span class="u"> warps</span>', cls: 'green',
+          sub: '角色池记录 <b>' + n11 + '</b> 抽 ÷ UP <b>' + linkChUp + '</b> 次 · 口径 (' + n11 + '−' + linkChUp + ')÷' + linkChUp,
+          subEn: 'Character pool: <b>' + n11 + '</b> warps ÷ <b>' + linkChUp + '</b> UPs · formula (' + n11 + '−' + linkChUp + ')÷' + linkChUp },
+        { key: '每 UP 光锥需', keyEn: 'Warps per UP Light Cone', value: perUpLc + '<span class="u"> 抽</span>', valueEn: perUpLc + '<span class="u"> warps</span>', cls: 'purple',
+          sub: '光锥池记录 <b>' + n12 + '</b> 抽 ÷ UP <b>' + linkLcUp + '</b> 次 · 口径 (' + n12 + '−' + linkLcUp + ')÷' + linkLcUp,
+          subEn: 'Light cone pool: <b>' + n12 + '</b> warps ÷ <b>' + linkLcUp + '</b> UPs · formula (' + n12 + '−' + linkLcUp + ')÷' + linkLcUp },
+        { key: '小保底不歪 · 角色', keyEn: '50/50 Win · Character', value: smallCh.rate + '<span class="u">%</span>', cls: 'gold',
+          sub: '角色池 UP <b>' + smallCh.up + '</b> 次里 <b>' + smallCh.direct + '</b> 次小保底直接出（歪 ' + smallCh.off + ' 次）' + (smallCh.pending ? ' · ⚠️ 末次出金是歪、尚未兑现' : ''),
+          subEn: 'Of <b>' + smallCh.up + '</b> UP 5★ in the character pool, <b>' + smallCh.direct + '</b> won the 50/50 directly (lost ' + smallCh.off + ')' + (smallCh.pending ? ' · ⚠️ last 5★ was a loss, not yet redeemed' : '') },
+        { key: '小保底不歪 · 光锥', keyEn: '50/50 Win · Light Cone', value: smallLc.rate + '<span class="u">%</span>', cls: 'green',
+          sub: '光锥池 UP <b>' + smallLc.up + '</b> 次里 <b>' + smallLc.direct + '</b> 次小保底直接出（歪 ' + smallLc.off + ' 次）' + (smallLc.pending ? ' · ⚠️ 末次出金是歪、尚未兑现' : ''),
+          subEn: 'Of <b>' + smallLc.up + '</b> UP 5★ in the light cone pool, <b>' + smallLc.direct + '</b> won the 50/50 directly (lost ' + smallLc.off + ')' + (smallLc.pending ? ' · ⚠️ last 5★ was a loss, not yet redeemed' : '') },
       ],
       wsBase: Object.assign({}, WS_BASE, { label: WS_LABEL }), wsAt: WS_AT, inc: { p: INC_P, g: INC_G }, tot: { p: TOT_P, g: TOT_G },
       recent: {

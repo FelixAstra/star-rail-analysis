@@ -859,3 +859,33 @@ h2 small{font-weight:400;color:var(--tx3);font-size:12.5px;margin-left:8px;lette
 .sw-light .thm-sw{background:conic-gradient(from 210deg,#f4f6fa,#ffffff,#e6e9f0,#c8862a,#f4f6fa)}
 .sw-dark  .thm-sw{background:conic-gradient(from 210deg,#0f1320,#2a3145,#a98cf0,#6fa3e0,#0f1320)}
 .sw-glass .thm-sw{background:conic-gradient(from 210deg,#9678ff,#58c8ff,#ffa0be,#78ebd7,#9678ff)}
+
+/* ── 英文态排版微调 ───────────────────────────────────────────────────────────
+   英文标签普遍比中文长得多（中文 2 个字 ≈ 英文 10 个字符），宽高都会变：
+   · 侧栏导航与「待开发」角标挤在一起 → 侧栏放宽；
+   · 抽数标签变成「74 warps」，跟右边的 UP/歪 角标贴死 → 加大间距；
+   · 统计卡标题变长 → 窄屏提前降成 2 列，并把行高放松。
+   全部收口在 <html data-lang="en"> 下，**中文态一行都不受影响**。 */
+/* 卦名下的英文译名（对照用，仅作检索线索，所以压得很轻） */
+.dz-gname-en{font-size:12px;font-weight:500;color:var(--tx3);letter-spacing:.2px;margin-top:1px}
+[data-lang="en"] .side{flex-basis:240px}
+[data-lang="en"] .navi .tag{font-size:9px;padding:0 4px}
+[data-lang="en"] .pl{letter-spacing:0}
+[data-lang="en"] .pl b{margin-left:5px}
+[data-lang="en"] .sk{line-height:1.35}
+[data-lang="en"] .st .ss{line-height:1.45}
+/* 解释说明页的目录：英文标题比中文长一倍，250px 会挤成 4 列、标题折两行；
+   抬高到 292px 恰好落成 3 列，9 章正好排 3 行。 */
+[data-lang="en"] .hp-toc{grid-template-columns:repeat(auto-fit,minmax(292px,1fr))}
+/* 起卦法的下拉框：中文「三枚铜钱法」5 个字，英文 "Three-coin method" 会被 132px 截断 */
+[data-lang="en"] .dz-sel-s{max-width:164px}
+/* 稀有度卡片网格：中文名通常 3~5 字（「与血同生」），英文名是中文的 2~4 倍长
+   （"Flame of Blood, Blaze My Path" 28 个字符），104px 的卡片只放得下一半，
+   名字几乎全被省略号吃掉 —— 悬停有 title 兜底，但扫视时读不出来。
+   英文态把卡片下限抬到 136 / 160px，auto-fill 自动从 8 列降到 7 / 6 列，换回可读性。
+   角色配对卡（.pgrid，188px）本来就够宽，不动。 */
+[data-lang="en"] .grid{grid-template-columns:repeat(auto-fill,minmax(136px,1fr))}
+[data-lang="en"] .grid.g5l{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
+@media (max-width:1320px){[data-lang="en"] .sts{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:640px){[data-lang="en"] .sts{grid-template-columns:1fr}}
+@media (max-width:900px){[data-lang="en"] .hp-toc{grid-template-columns:1fr}}

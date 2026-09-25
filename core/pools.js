@@ -132,6 +132,12 @@ const SIG = {
 const PATH_CN = { Warrior: '毁灭', Rogue: '巡猎', Mage: '智识', Shaman: '同谐', Knight: '存护',
                   Warlock: '虚无', Priest: '丰饶', Memory: '记忆', Elation: '欢愉' };
 const PATH_ORDER = ['Warrior', 'Rogue', 'Mage', 'Shaman', 'Warlock', 'Knight', 'Priest', 'Memory', 'Elation'];
+// 官方英文本地化的池名 / 短名（游戏内 Warp 界面的官方译名）
+const POOL_EN = { '1': 'Stellar Warp', '2': 'Departure Warp', '11': 'Character Event Warp',
+                  '12': 'Light Cone Event Warp', '21': 'Character Collaboration Warp',
+                  '22': 'Light Cone Collaboration Warp' };
+const POOL_SHORT_EN = { '1': 'Standard', '2': 'Beginner', '11': 'Character', '12': 'Light Cone',
+                        '21': 'Collab Char', '22': 'Collab LC' };
 
 
 // ⚠️ 这里**只有口径常量**。账号自己的历史（跨界金、截图补录、数据补填基准）
@@ -139,5 +145,5 @@ const PATH_ORDER = ['Warrior', 'Rogue', 'Mage', 'Shaman', 'Warlock', 'Knight', '
 module.exports = {
   POOL, POOL_SHORT, HARD, LD_TYPES, NORMAL_TYPES,
   STD_CHARS, STD_CONS, stdSet,
-  SIG, PATH_CN, PATH_ORDER,
+  SIG, PATH_CN, PATH_ORDER, POOL_EN, POOL_SHORT_EN,
 };
