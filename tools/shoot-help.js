@@ -42,7 +42,10 @@ const PROF = fs.mkdtempSync('/tmp/wb-shot-prof-');
 const chrome = spawn(CHROME, [
   '--headless=new', '--remote-debugging-port=' + PORT, '--user-data-dir=' + PROF,
   '--no-proxy-server', '--no-first-run', '--no-default-browser-check',
-  '--disable-gpu', '--hide-scrollbars', '--force-device-scale-factor=1',
+  // ⚠️ 与 tools/verify-i18n.js 保持一致；本机无头 Chrome 缺了这几个会被沙箱
+  //    拦在启动阶段（RLZ / code_sign_clone 的临时文件），表现为静默秒退。
+  '--in-process-gpu', '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage',
+  '--hide-scrollbars', '--force-device-scale-factor=1',
   '--window-size=1440,1100', 'about:blank',
 ], { stdio: 'ignore' });
 // ⚠️ 必须显式 kill：spawn 出来的 Chrome 会吊住 node 的事件循环，

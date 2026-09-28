@@ -27,6 +27,28 @@
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+<!-- Liquid Glass 的折射滤镜（只有 glass 主题会引用它；其它主题 --blur 为 0，也从不 url() 它）。
+
+     ⚠️ 位移场必须先过一道 feGaussianBlur：直接拿 feTurbulence 的噪声去位移，
+        出来的是毛玻璃颗粒感，不是液态起伏 —— 平滑过的噪声才会形成大尺度弯折。
+     ⚠️ color-interpolation-filters 必须显式写 sRGB。默认的 linearRGB 会让
+        位移图的通道值非线性，同样的 scale 在不同元素上弯折程度对不上。
+     ⚠️ 引用它的那条 backdrop-filter 在 Safari / Firefox 上会被整条丢弃（它们
+        不支持在 backdrop-filter 里用 url()），于是自动退到纯 CSS 的模糊版。
+        这是有意的降级路径，不是缺陷 —— README 与主题说明里都写了。 -->
+<svg width="0" height="0" aria-hidden="true" focusable="false"
+     style="position:absolute;width:0;height:0;overflow:hidden">
+  <defs>
+    <filter id="lg-refract" x="-8%" y="-8%" width="116%" height="116%"
+            color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency="0.018 0.026" numOctaves="2" seed="17" result="noise"/>
+      <feGaussianBlur in="noise" stdDeviation="3.5" result="soft"/>
+      <feDisplacementMap in="SourceGraphic" in2="soft" scale="12"
+                         xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </defs>
+</svg>
+
 <div id="app"></div>
 
 <!-- Vue 3（本地 vendor，无构建、无 npm 依赖） -->

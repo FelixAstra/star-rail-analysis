@@ -170,11 +170,13 @@ The divination page follows rules fixed up front, and the app is built to keep t
 
 ### Theming
 
-Four themes ship in the box, switchable from the bottom of the sidebar and remembered in `localStorage`. The default is derived from the project logo.
+Four themes ship in the box, switchable from the bottom of the sidebar and remembered in `localStorage`. The default is derived from the project logo: **vivid** (deep-space indigo with neon accents), **light**, **dark**, and **glass**.
 
-<img src="assets/readme/themes.png" alt="The same dashboard shown in all four themes: vivid (dark indigo and neon), light, dark, and glass" width="880">
+<img src="assets/readme/themes.png" alt="The same dashboard shown in all four themes: vivid (dark indigo and neon), light, dark, and glass (a deep base with liquid-glass panels)" width="880">
 
 All colours live in **`web/theme.css`** as semantic tokens. `styles.css` and the components reference tokens for every themable colour; the only literals left are a handful of theme-agnostic shadow alphas and the four theme-swatch gradients. Switching is a single `data-theme` attribute on `<html>`, applied synchronously by an inline `<head>` script so the first frame never flashes the wrong palette. The divination compass, plastron and coins are pure SVG/CSS and re-colour with the theme.
+
+The **glass** theme follows the liquid-glass recipe rather than plain frosted blur, and three things separate the two. The panel fill sits near 0.1 alpha, so the colour behind it actually reaches the surface; the panel edge carries a rim of light that is brightest along the top and dimmer down the sides; and in Chromium the backdrop is displaced by an SVG filter — `feTurbulence`, smoothed by `feGaussianBlur`, fed into `feDisplacementMap` — so the edges genuinely bend what lies behind them. `backdrop-filter` does not accept a `url()` filter in Safari or Firefox; those browsers drop that one declaration and keep the plain blurred version, so the theme degrades instead of breaking. Pointer movement feeds `--mx` / `--my` on panel surfaces, and the highlight and the hover lift are both switched off under `prefers-reduced-motion`. Displacement is applied to small controls only — its cost scales with area, and running it across long tables costs frames while scrolling.
 
 <img src="assets/readme/divination.png" alt="Divination page: the current banner with its remaining time, a circular bagua plate, the six-line casting panel, and controls for casting method, banner and pity state" width="880">
 
@@ -225,6 +227,8 @@ star-rail-analysis/
 │   ├── build-gua-data.js    Rebuild core/gua-data.js from three open datasets
 │   ├── verify-divination.js Monte-Carlo check of the divination engine
 │   ├── verify-banner.js     Banner calendar, date picking, offline fallback
+│   ├── verify-dashboard.js  Mathematical properties of the chart panels and the pity model
+│   ├── verify-glass.js      Headless-Chrome check that the glass theme's layers are live
 │   ├── check-i18n.js        Static bilingual coverage check (runs in CI)
 │   ├── verify-i18n.js       Headless-Chrome check for strings left untranslated on screen
 │   ├── lib/i18n-keys.js     Shared scanners for t('…') keys and L(zh, en) pairs
@@ -246,14 +250,16 @@ No build step, no bundler, no test runner to install — the checks are plain No
 ```bash
 node tools/verify-divination.js   # casting probabilities, changing-line rules, fortune tiers
 node tools/verify-banner.js       # banner calendar parsing, date picking, offline fallback
+node tools/verify-dashboard.js    # chart-panel statistics and the pity model's maths
 node tools/check-i18n.js          # bilingual coverage: dictionary keys, placeholders, paired strings
+node tools/verify-glass.js        # the glass theme's layers, with the app already running
 ```
 
-`verify-divination.js` and `check-i18n.js` run standalone. `verify-banner.js` needs imported records in `data/records.json` **and** network access, so it exits early on a fresh clone or on demo data. `verify-i18n.js` needs the app already running (`node server/server.js`) plus a local Chrome, and accepts `--list` to dump what it found or `--shots` to save screenshots.
+`verify-divination.js`, `verify-dashboard.js` and `check-i18n.js` run standalone. `verify-banner.js` needs imported records in `data/records.json` **and** network access, so it exits early on a fresh clone or on demo data. `verify-i18n.js` needs the app already running (`node server/server.js`) plus a local Chrome, and accepts `--list` to dump what it found or `--shots` to save screenshots. `verify-glass.js` needs a running app and Chrome too; it drives all four themes and writes screenshots to a temp directory for review.
 
 CI (`.github/workflows/ci.yml`) runs on every push: a syntax check over every JS file, the divination engine assertions, the bilingual coverage check, and the boot smoke test (`tools/ci-smoke.js`, which exports a clean tree to a temp dir, starts the server on empty data, and probes eight endpoints). Pushing a `v*` tag additionally builds the release zip and publishes it via `.github/workflows/release.yml`.
 
-Screenshots are re-shot with two headless-Chrome scripts that drive the app over the DevTools Protocol: `tools/shoot-help.js` for the handbook, `tools/shoot-readme.js` for the images in this file — including the four-theme mosaic, which is composited inside a throwaway page so that no image tooling is required. Both need **Node 22+** for the global `WebSocket` API, **demo data**, and a server already running; pass `--lang=en` for the English UI these images use.
+Screenshots are re-shot with two headless-Chrome scripts that drive the app over the DevTools Protocol: `tools/shoot-help.js` for the handbook, `tools/shoot-readme.js` for the images in this file — including the four-theme mosaic, which is composited inside a throwaway page so that no image tooling is required. Both need **Node 22+** for the global `WebSocket` API, **demo data**, and a server already running; pass `--lang=en` for the English UI these images use, and `--only=themes.png` to re-shoot a single file when only that one has gone stale.
 
 **A gotcha worth knowing if you write your own checks:** several pages use `loading="lazy"` images, so any automated pass must scroll the whole page before measuring them — otherwise it reads "not loaded yet" as "broken".
 

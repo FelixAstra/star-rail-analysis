@@ -13,6 +13,8 @@
 //   node server/server.js &
 //   # 2) 拍照（公开配图用英文界面，与英文 README 一致）
 //   node tools/shoot-readme.js http://127.0.0.1:8799/ ./assets/readme --lang=en
+//   # 只重拍某几张（例如主题观感变了，只需重拍拼图）：
+//   node tools/shoot-readme.js http://127.0.0.1:8800/ ./assets/readme --lang=en --only=themes.png
 //
 // ⚠️ 截的是**视口**而不是元素：README 里按 880px 宽展示，固定一个「取景刚好」的
 //    视口尺寸即可，不必跟着页面高度走（元素裁剪在长页面上很难稳定）。
@@ -28,6 +30,14 @@ const path = require('path');
 const APP = process.argv[2] || 'http://127.0.0.1:8799/';
 const OUT = path.resolve(process.argv[3] || path.join(__dirname, '..', 'assets/readme'));
 const LANG = (process.argv.find(a => a.indexOf('--lang=') === 0) || '--lang=en').split('=')[1];
+// --only=themes.png[,roles.png] 只重拍指定的几张。
+// 主题换了观感却只动了一张图时用它 —— 另外几张里的「分析于 <时间戳>」会凭空变化，
+// 白白让 diff 变脏。
+const ONLY = (() => {
+  const a = process.argv.find(x => x.indexOf('--only=') === 0);
+  return a ? a.split('=')[1].split(',').map(s => s.trim()).filter(Boolean) : null;
+})();
+const want = f => !ONLY || ONLY.indexOf(f) >= 0;
 const CHROME = process.env.CHROME_BIN ||
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 
@@ -45,7 +55,11 @@ const PROF = fs.mkdtempSync('/tmp/wb-readme-prof-');
 const chrome = spawn(CHROME, [
   '--headless=new', '--remote-debugging-port=' + PORT, '--user-data-dir=' + PROF,
   '--no-proxy-server', '--no-first-run', '--no-default-browser-check',
-  '--disable-gpu', '--hide-scrollbars', '--force-device-scale-factor=1', 'about:blank',
+  // ⚠️ 这四个跟 tools/verify-i18n.js 保持一致：本机无头 Chrome 缺了它们会被
+  //    沙箱拦在启动阶段（拦的是它自己的 RLZ / code_sign_clone 临时文件），
+  //    表现是「脚本 3 秒就退出、stdout 一个字都没有」。
+  '--in-process-gpu', '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage',
+  '--hide-scrollbars', '--force-device-scale-factor=1', 'about:blank',
 ], { stdio: 'ignore' });
 // ⚠️ 必须显式 kill：spawn 出来的 Chrome 会吊住 node 的事件循环，只设 exitCode 命令会挂死
 const killChrome = () => { try { chrome.kill('SIGKILL'); } catch (e) {} };
@@ -141,6 +155,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
    * @param opt {{w?:number,h?:number,sel?:string,pad?:number}} sel 给了就滚到该元素顶部
    */
   const shotPage = async (navIdx, file, opt) => {
+    if (!want(file)) { console.log('  · 跳过 ' + file + '（--only 未选中）'); return; }
     const o = opt || {};
     await setViewport(o.w || W, o.h || H);
     await clickNav(navIdx);
@@ -168,6 +183,9 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   await shotPage(2, 'divination.png', {});
 
   // ── 四主题拼图：2×2，每格 600×408，左上角叠主题名 ──────────────────────────
+  if (!want('themes.png')) {
+    console.log('  · 跳过 themes.png（--only 未选中）');
+  } else {
   await setViewport(W, WH);
   const tiles = [];
   for (const [key, label] of THEMES) {
@@ -194,6 +212,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   await send('Page.navigate', { url: 'file://' + fig });
   await sleep(1200);
   await grab('themes.png');
+  }
 
   console.log('✔ 全部完成，输出目录 ' + OUT);
   ws.close();

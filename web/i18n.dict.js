@@ -64,8 +64,8 @@
       'The original light palette',
     '中性冷灰暗色，长时间看不刺眼':
       'Neutral cool-grey dark; easy on the eyes over long sessions',
-    '流体玻璃：半透明面板 + 背景彩色光团':
-      'Liquid glass: translucent panels over soft colour blooms',
+    '液态玻璃：深色底 + 真透面板，边缘有折射亮边，指针划过会亮':
+      'Liquid glass: a deep base, see-through panels with a refracted rim light that follows the pointer',
     '群星跃迁':
       'Stellar Warp',
     '始发跃迁':
