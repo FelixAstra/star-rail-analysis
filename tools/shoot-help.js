@@ -9,8 +9,12 @@
 //   # 1) 铺演示数据 + 起服务（别拿真实账号数据拍，会把抽卡史拍进公开仓库）
 //   node tools/make-demo-data.js --force
 //   node server/server.js &
-//   # 2) 拍照
-//   node tools/shoot-help.js http://127.0.0.1:8799/ ./assets/help
+//   # 2) 拍照（--lang=en 拍英文界面；公开配图默认就是英文，与英文 README 一致）
+//   node tools/shoot-help.js http://127.0.0.1:8799/ ./assets/help --lang=en
+//
+// ⚠️ 定位元素一律**按下标或 class，不按标题文案**：文案随界面语言变
+//    （「① 抓取新的抽卡记录」/「① Fetch new warp records」），按文案找
+//    等于给每种语言各维护一套选择器。语言只在开头写一次 localStorage。
 //
 // ⚠️ 会**直接覆盖** assets/help/ 里的同名文件，先备份。
 // ⚠️ 页面图标是 loading="lazy" —— 不把整页滚一遍，量到的 naturalWidth 恒为 0。
@@ -24,6 +28,8 @@ const path = require('path');
 
 const APP = process.argv[2] || 'http://127.0.0.1:8799/';
 const OUT = path.resolve(process.argv[3] || path.join(__dirname, '..', 'assets/help'));
+const LANG = (process.argv.find(a => a.indexOf('--lang=') === 0) || '--lang=en').split('=')[1];
+const EN = LANG === 'en';
 const CHROME = process.env.CHROME_BIN ||
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 
@@ -49,8 +55,9 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // ── 元素表达式工具 ──────────────────────────────────────────────────────────
 const q = sel => 'document.querySelector(' + JSON.stringify(sel) + ')';
-const dmCard = t => '[...document.querySelectorAll(".dm .card")].find(c=>(c.querySelector("h3")||{}).textContent.includes(' + JSON.stringify(t) + '))';
-const dmSub = (t, sub) => '(()=>{const c=' + dmCard(t) + ';return c?c.querySelector(' + JSON.stringify(sub) + '):null})()';
+// 「抓取与数据管理」页的六张卡按下标取：0=① 抓取新的抽卡记录 … 4=⑤ 外部统计补录
+const dmCard = i => '([...document.querySelectorAll(".dm .card")][' + i + '])';
+const dmSub = (i, sub) => '(()=>{const c=' + dmCard(i) + ';return c?c.querySelector(' + JSON.stringify(sub) + '):null})()';
 
 (async () => {
   // ── 连上页面 target（注意：是 /json/list 里的 page，不是 /json/version）──────
@@ -109,9 +116,10 @@ const dmSub = (t, sub) => '(()=>{const c=' + dmCard(t) + ';return c?c.querySelec
   const scrollThrough = async () => {
     await raw('(async()=>{const H=document.body.scrollHeight;for(let y=0;y<H;y+=500){window.scrollTo(0,y);await new Promise(r=>setTimeout(r,60));}window.scrollTo(0,H);await new Promise(r=>setTimeout(r,250));window.scrollTo(0,0);await new Promise(r=>setTimeout(r,400));return 1})()');
   };
-  const clickNav = async name => {
-    const ok = await raw('(()=>{const b=[...document.querySelectorAll(".side .navi")].find(x=>x.textContent.includes(' + JSON.stringify(name) + '));if(!b)return 0;b.click();return 1})()');
-    if (!ok) throw new Error('找不到左侧导航「' + name + '」');
+  // 左侧导航按下标点：0=抽卡分析 1=角色管理 2=八卦占卜 3=抓取与数据管理 4=解释说明
+  const clickNav = async idx => {
+    const ok = await raw('(()=>{const b=document.querySelectorAll(".side .navi")[' + idx + '];if(!b)return 0;b.click();return 1})()');
+    if (!ok) throw new Error('左侧导航第 ' + idx + ' 项点不到（.side .navi 没渲染出来？）');
     await sleep(800);
   };
 
@@ -139,10 +147,20 @@ const dmSub = (t, sub) => '(()=>{const c=' + dmCard(t) + ';return c?c.querySelec
       '  ' + (buf.length / 1024).toFixed(0).padStart(4) + ' KB   ← ' + elExpr.slice(0, 56));
   };
 
-  console.log('· 打开 ' + APP);
+  console.log('· 打开 ' + APP + '（界面语言 ' + LANG + '）');
   await gotoUrl(APP, '.side');
-  await sleep(1500);
+  // 同源之后才写得进 localStorage；写完必须 reload 才生效
+  await raw('try{localStorage.setItem("sr.lang",' + JSON.stringify(LANG) + ')}catch(e){};1');
+  await send('Page.reload', { ignoreCache: true });
+  for (let i = 0; i < 120; i++) {
+    await sleep(250);
+    if (await raw('!!document.querySelector(".side")')) break;
+  }
+  await sleep(1200);
   await scrollThrough();
+  // ⚠️ 拍之前先确认语言真的切过去了 —— 否则会拍出一整套中文图当成英文图提交
+  const gotLang = await raw('document.documentElement.getAttribute("data-lang")');
+  if (gotLang !== LANG) throw new Error('界面语言没切到 ' + LANG + '（<html data-lang>=' + gotLang + '）');
   const st = await json('JSON.stringify({uid:(document.querySelector(".sfoot b")||{}).textContent,cards:document.querySelectorAll(".sts > *").length})');
   console.log('· 已加载 UID=' + st.uid + ' · 总貌卡 ' + st.cards + ' 张');
 
@@ -151,6 +169,21 @@ const dmSub = (t, sub) => '(()=>{const c=' + dmCard(t) + ';return c?c.querySelec
   // 公开版不能留，改成一张自绘示意图：只讲「平台从总结页取哪两个数」。
   const base = await json('fetch("/api/analysis").then(r=>r.json()).then(j=>JSON.stringify({p:j.overview.wsBase.pulls,g:j.overview.wsBase.gold}))');
   const fig1 = path.join(PROF, 'fig1.html');
+  // 这张是**自绘示意图**（不是应用界面），所以它的文案也得跟着 --lang 走
+  const F = EN ? {
+    h2: 'Warp summary (illustration)',
+    sub: 'The two totals you can read off a third-party tool or the in-game summary page',
+    k1: 'Total warps', k2: '5★ count',
+    note: 'These are the two numbers “Fetch & Data → ④ Backfill totals” reads: the official API keeps '
+      + 'only about a year, so <b>a recount from individual records is always lower</b> — the totals can '
+      + 'only be copied over, while rates such as the 5★ rate are recomputed live from the records.',
+  } : {
+    h2: '抽卡总结（示意图）',
+    sub: '第三方统计工具 / 游戏内总结页上能看到的两个汇总数',
+    k1: '总抽数', k2: '五星数',
+    note: '「抓取与数据管理 → ④ 数据补填」读的就是这两个数：官方接口只保留约 1 年，'
+      + '<b>逐条记录重算永远比总量少</b>，所以总量只能照抄；出金率这类比率才用逐条记录实时算。',
+  };
   fs.writeFileSync(fig1, `<!doctype html><meta charset="utf-8"><style>
 body{margin:0;background:#eef2f9;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
 #card{width:760px;background:#fff;border:1px solid #e3e8f2;border-radius:14px;padding:24px 28px}
@@ -164,13 +197,13 @@ h2{margin:0 0 6px;font-size:18px;font-weight:650;color:#2b3550}
 .note b{color:#2b3550}
 </style>
 <div id="card">
-  <h2>抽卡总结（示意图）</h2>
-  <div class="sub">第三方统计工具 / 游戏内总结页上能看到的两个汇总数</div>
+  <h2>${F.h2}</h2>
+  <div class="sub">${F.sub}</div>
   <div class="kv">
-    <div class="it"><div class="k">总抽数</div><div class="v">${base.p}</div></div>
-    <div class="it"><div class="k">五星数</div><div class="v">${base.g}</div></div>
+    <div class="it"><div class="k">${F.k1}</div><div class="v">${base.p}</div></div>
+    <div class="it"><div class="k">${F.k2}</div><div class="v">${base.g}</div></div>
   </div>
-  <div class="note">「抓取与数据管理 → ④ 数据补填」读的就是这两个数：官方接口只保留约 1 年，<b>逐条记录重算永远比总量少</b>，所以总量只能照抄；出金率这类比率才用逐条记录实时算。</div>
+  <div class="note">${F.note}</div>
 </div>`);
   await gotoUrl('file://' + fig1, '#card');
   await sleep(300);
@@ -185,12 +218,12 @@ h2{margin:0 0 6px;font-size:18px;font-weight:650;color:#2b3550}
   await clipBy(q('.sts'), '02-overview.png', { pad: 12, maxW: 1440, maxH: 700 });
 
   // ── 数据管理页 ───────────────────────────────────────────────────────────
-  await clickNav('抓取与数据管理');
+  await clickNav(3);
   await scrollThrough();
   // 03 只截表格（不要卡片外框与标题，跟旧版取景一致）
-  await clipBy(dmSub('③ 各卡池时间边界', '.tb'), '03-pool-bounds.png', { pad: 10, maxH: 900 });
-  await clipBy(dmCard('① 抓取新的抽卡记录'), '08-manage.png', { pad: 12, maxH: 1400 });
-  await clipBy(dmCard('④ 数据补填'), '09-fill.png', { pad: 12, maxH: 1600 });
+  await clipBy(dmSub(2, '.tb'), '03-pool-bounds.png', { pad: 10, maxH: 900 });
+  await clipBy(dmCard(0), '08-manage.png', { pad: 12, maxH: 1400 });
+  await clipBy(dmCard(3), '09-fill.png', { pad: 12, maxH: 1600 });
 
   // ── 10 外部统计补录：合成一张「角色列表」塞进上传口，等识别完再截 ──────────
   const lib = await json('fetch("/api/iconlib").then(r=>r.json()).then(j=>JSON.stringify((j.ch||[]).filter(x=>x.rarity>=5).slice(0,6).map(x=>({id:x.id,name:x.name,dir:x.dir}))))');
@@ -221,18 +254,26 @@ h2{margin:0 0 6px;font-size:18px;font-weight:650;color:#2b3550}
     return 'ok';
   })()`);
   if (fillOk !== 'ok') throw new Error('往上传口塞合成图失败：' + fillOk);
-  let rows = 0;
-  for (let i = 0; i < 160; i++) {
+  // ⚠️ 两个坑叠在一起，别再改回去：
+  //    ① 不能数 `tbody tr` 的总数 —— 表空时有一行**占位行**（「还没有待确认的行…」），
+  //       它会把判据骗过去，拍到的是「还没识别完」的半成品；
+  //       所以只数**带缩略图的行**（td > .thumb，占位行没有它）。
+  //    ② 也不能「>=1 就往下走」—— 识别逐张截图跑，第一行出现时后面还在填。
+  //       等行数连续两次不变再拍，正好能拍到「识别完成 + 进度条满格」的那一瞬。
+  let rows = 0, prev = -1, stable = 0;
+  for (let i = 0; i < 200; i++) {
     await sleep(500);
-    rows = await raw('document.querySelectorAll(".dm .imp .imp-tb tbody tr").length');
-    if (rows >= 1) break;
+    rows = await raw('[...document.querySelectorAll(".dm .imp .imp-tb tbody tr")]'
+      + '.filter(tr => tr.querySelector(".thumb")).length');
+    if (rows >= 1 && rows === prev) { if (++stable >= 2) break; } else stable = 0;
+    prev = rows;
   }
   console.log('· 外部统计识别出 ' + rows + ' 行');
   await sleep(600);
-  await clipBy(dmCard('⑤ 外部统计补录'), '10-external.png', { pad: 12, maxH: 3000 });
+  await clipBy(dmCard(4), '10-external.png', { pad: 12, maxH: 3000 });
 
   // ── 04 / 05 当期卡池识别 ─────────────────────────────────────────────────
-  await clickNav('抽卡分析');
+  await clickNav(0);
   await scrollThrough();
   await clipBy(q('.btabs'), '04-banners.png', { pad: 10, maxH: 1200 });
   await raw('(()=>{const d=document.querySelector(".bpane-11 details.pool-row");if(d)d.open=true;return 1})()');
@@ -241,7 +282,7 @@ h2{margin:0 0 6px;font-size:18px;font-weight:650;color:#2b3550}
   await clipBy(q('.bpane-11 details.pool-row[open]'), '05-detail.png', { pad: 10, maxH: 1200 });
 
   // ── 06 / 07 角色管理两页 ─────────────────────────────────────────────────
-  await clickNav('角色管理');
+  await clickNav(1);
   await scrollThrough();
   await clipBy(q('.pgrid'), '06-roles.png', { pad: 12, maxH: 2400 });
   await clipBy(q('.g5l'), '07-cones.png', { pad: 12, maxH: 2400 });

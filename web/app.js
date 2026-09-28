@@ -141,6 +141,12 @@
       <main class="main">
         <div v-if="loading" class="wrap"><div class="note">{{ t('正在读取本地抽卡数据…') }}</div></div>
         <div v-else-if="err" class="wrap"><div class="note badge-bad">{{ err }}</div></div>
+        <!-- ⚠️「抓取与数据管理」必须**在没有记录时也能进**：它自己就是导入与截图补录的入口，
+             而空状态里那句提示恰恰让用户「去左侧的抓取与数据管理」。若把它也挡在 !a.empty
+             后面，点进去看到的还是同一句提示 —— 对刚下载、手上还没有记录的人是一条死路。
+             这一页只依赖 /api/status（自己 fetch），不看分析结果，所以空数据下能安全渲染。 -->
+        <w-data-manage v-else-if="page === 'data'" :a="a"
+                       @refetch="load(true)" @refresh-icon="load(true)"></w-data-manage>
         <div v-else-if="!a || a.empty" class="wrap">
           <w-empty :msg="t('本地还没有抽卡记录')" :hint="t('去左侧的「抓取与数据管理」粘贴一条抽卡链接，抓一次就有了。')"></w-empty>
         </div>
@@ -149,8 +155,6 @@
           <w-role-page v-else-if="page === 'roles'" :a="a"></w-role-page>
           <w-divination-page v-else-if="page === 'divination'" :a="a"></w-divination-page>
           <w-help-page v-else-if="page === 'help'" :a="a"></w-help-page>
-          <w-data-manage v-else-if="page === 'data'" :a="a"
-                         @refetch="load(true)" @refresh-icon="load(true)"></w-data-manage>
         </template>
       </main>
 

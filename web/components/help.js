@@ -2,7 +2,7 @@
 // 「解释说明」页 —— 把原先散在「抽卡分析」页各板块的长段解释文字集中到这里
 // 组织方式：先一个「一分钟看懂」，再按「数据来源 → 卡池 → 读数 → 对账 → 维护」的
 // 认知顺序排 9 章，每章 = 一句话结论 + 正文 + 界面截图 + 关键点。顶部有目录可跳转。
-// 说明：正文里的实时数字随数据变，截图是 2026-09-16 的界面快照（图注里都标了）。
+// 说明：正文里的实时数字随数据变，配图是用演示数据拍的界面示意（正文数字才是本机实时值）。
 //
 // ⚠️ 双语写法与其他页面不同，理由写在这里，改之前先读：
 //    其余页面是**短标签**，走 t() + web/i18n.dict.js（中文原文当 key，译文集中放一个文件）。
@@ -295,7 +295,7 @@
       <div class="pagehead">
         <div>
           <h1>{{ L('解释说明', 'Guide') }}</h1>
-          <div class="sub" v-html="L('这一页是<b>说明书</b>：把「抽卡分析」「角色管理」里每一块数字的<b>来源、口径、坑</b>讲清楚。数字会随数据变，<b>截图是 2026-09-16 的界面快照</b>，只作示意。', 'This page is the <b>manual</b>: it spells out the <b>source, definition and pitfalls</b> of every block of numbers on the Analysis and Characters pages. The figures move with your data — <b>the screenshots are snapshots of the 2026-09-16 UI</b> and are for illustration only.')"></div>
+          <div class="sub" v-html="L('这一页是<b>说明书</b>：把「抽卡分析」「角色管理」里每一块数字的<b>来源、口径、坑</b>讲清楚。数字会随数据变，<b>配图是用演示数据拍的界面示意</b>，图上的数字与你的账号无关。', 'This page is the <b>manual</b>: it spells out the <b>source, definition and pitfalls</b> of every block of numbers on the Analysis and Characters pages. The figures move with your data — <b>the illustrations were captured with demo data</b>, so the numbers on them are not your account’s.')"></div>
         </div>
         <div class="pg-actions">
           <button class="btn" @click="goto('analysis')">{{ L('← 回 抽卡分析', '← Back to Analysis') }}</button>
@@ -426,7 +426,7 @@
           </div>
           <div class="hp-card">
             <div class="hp-card-h">{{ L('推论：总抽数只能「持续累积」', 'Consequence: the totals can only accumulate') }}</div>
-            <div class="hp-card-b" v-html="L('一条链接<b>不可能</b>还原第三方工具的全量历史（它云端存了 5588 抽，接口只给你窗口里那 3273 条）。要做完整历史只有两条路：<b>从现在起持续同步</b>，或者<b>导入第三方导出的记录文件</b>（UIGF / SRGF 格式）。', 'A single link <b>cannot</b> rebuild a third-party tool’s full history (it holds 5588 warps in the cloud, while the API hands you only those 3273 rows inside the window). Full history takes one of two routes: <b>keep syncing from now on</b>, or <b>import a record file exported by a third-party tool</b> (UIGF / SRGF format).')"></div>
+            <div class="hp-card-b" v-html="L('一条链接<b>不可能</b>还原第三方工具的全量历史（它云端存了 5588 抽，接口只给你窗口里那 3273 条）。要做完整历史只有两条路：<b>从现在起持续同步</b>，或者用<b>截图补录</b>把窗口外的部分手工搬进来。', 'A single link <b>cannot</b> rebuild a third-party tool’s full history (it holds 5588 warps in the cloud, while the API hands you only those 3273 rows inside the window). Full history takes one of two routes: <b>keep syncing from now on</b>, or move the part outside the window in by hand with <b>screenshot backfill</b>.')"></div>
           </div>
         </div>
         <h3 class="hp-h3">{{ L('3.1 导入的完整生命周期：第一次建仓，之后只累加', '3.1 The full life of an import: the first one creates the store, the rest only add') }}</h3>
@@ -657,14 +657,14 @@
             <ul>
               <li v-html="L('<b>为什么不能一条链接还原我的全部历史？</b>接口只保留约 1 年且是滑动窗口，早期的记录服务器已经删了、不可恢复。第三方的全量数字是它长期累积在云端的，本机拿不到。', '<b>Why can one link not rebuild my whole history?</b> The API keeps only about a year and does so as a sliding window; earlier records are already deleted server-side and cannot be recovered. A third-party tool’s full figure is something it accumulated in the cloud over time, and this machine cannot reach it.')"></li>
               <li v-html="L('<b>数据会上传吗？</b>不会。服务只跑在 <code>127.0.0.1</code>，记录存在本机 <code>data/records.json</code>，只有抓取那一瞬间会向官方接口发请求。', '<b>Is anything uploaded?</b> No. The service listens on <code>127.0.0.1</code> only and records live in the local <code>data/records.json</code>; the sole moment anything is sent out is the request to the official API during a fetch.')"></li>
-              <li v-html="L('<b>怎么把历史补得更全？</b>两条路：从现在起每次抽完都抓一次（并集会越来越长）；或者导入第三方工具导出的 <b>UIGF / SRGF</b> 记录文件。', '<b>How do I make the history more complete?</b> Two routes: fetch after each session from now on (the union grows over time), or import a <b>UIGF / SRGF</b> record file exported by a third-party tool.')"></li>
-              <li v-html="L('<b>星魂 / 叠影为什么可能比实际低？</b>因为从抽卡记录算只能拿到接口窗口内那段，窗口外的金看不到，算出来自然是<b>下限</b>。要补两条路：<b>持续同步</b> / 导入完整记录文件，或者直接用<b>第三源</b>（「数据管理 → ⑤ 外部统计补录」，见 6.1）—— 后者不依赖历史，直接把当前真实持有状态搬进来。', '<b>Why can the Eidolon / superimposition figures read lower than reality?</b> Because computing from warp records only reaches the part inside the API window — 5★ from before it are invisible, so the result is naturally a <b>lower bound</b>. There are two ways to fix that: <b>keep syncing</b> / import a complete record file, or simply use the <b>third source</b> (“Data → ⑤ External stats”, see 6.1) — the latter does not depend on history at all, it moves your current real holdings straight in.')"></li>
+              <li v-html="L('<b>怎么把历史补得更全？</b>两条路：从现在起每次抽完都抓一次（并集会越来越长）；或者把游戏内的抽卡记录截图，用「<b>抓取与数据管理 → ⑤ 外部统计补录</b>」把窗口外那部分录进来。', '<b>How do I make the history more complete?</b> Two routes: fetch after each session from now on (the union grows over time), or screenshot the in-game warp history and enter the part outside the window via <b>Fetch &amp; Data → ⑤ External stats</b>.')"></li>
+              <li v-html="L('<b>星魂 / 叠影为什么可能比实际低？</b>因为从抽卡记录算只能拿到接口窗口内那段，窗口外的金看不到，算出来自然是<b>下限</b>。要补两条路：<b>持续同步</b>，或者直接用<b>第三源</b>（「数据管理 → ⑤ 外部统计补录」，见 6.1）—— 后者不依赖历史，直接把当前真实持有状态搬进来。', '<b>Why can the Eidolon / superimposition figures read lower than reality?</b> Because computing from warp records only reaches the part inside the API window — 5★ from before it are invisible, so the result is naturally a <b>lower bound</b>. There are two ways to fix that: <b>keep syncing</b>, or simply use the <b>third source</b> (“Data → ⑤ External stats”, see 6.1) — the latter does not depend on history at all, it moves your current real holdings straight in.')"></li>
             </ul>
           </div>
         </details>
       </section>
 
-      <div class="foot" v-html="L('本页只解释口径，不产生新数据 · 所有计算都在本机完成<br>截图拍摄于 2026-09-16，随数据更新可能与你屏幕上的数字略有出入', 'This page only explains definitions and produces no new data · every calculation runs on this machine<br>The screenshots were taken on 2026-09-16 and may differ slightly from the numbers on your screen as the data changes')"></div>
+      <div class="foot" v-html="L('本页只解释口径，不产生新数据 · 所有计算都在本机完成<br>配图用演示数据拍摄，只作界面示意；正文数字是你本机的实时值', 'This page only explains definitions and produces no new data · every calculation runs on this machine<br>The illustrations were captured with demo data and are for interface reference only; the figures in the text are live values from your own machine')"></div>
     </div>`,
   };
 })();

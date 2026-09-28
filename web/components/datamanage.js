@@ -98,7 +98,7 @@
         // 快照时刻直接取框内值：正常路径是秒级时刻（跟随当前时间来的），
         // 也有可能是用户手填的完整时刻，或只填到「日」（引擎按该日结束处理）。
         const at = String(form.value.snapAt || '').trim().replace('T', ' ') || fmtNow();
-        if (!SNAP_RE.test(at)) { err.value = W.I18N.t('「快照时间」格式应为 2026-09-16 或 2026-09-16 09:07:12'); return; }
+        if (!SNAP_RE.test(at)) { err.value = W.I18N.t('「快照时间」格式应为 YYYY-MM-DD 或 YYYY-MM-DD HH:MM:SS'); return; }
         const prev = (st.value && st.value.meta && st.value.meta.fillLog) || [];
         const entry = { at: fmtNow(), pulls: p, gold: g, snapAt: at };
         try {

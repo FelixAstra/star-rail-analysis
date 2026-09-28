@@ -50,13 +50,43 @@
         .map(v => v.name).sort((a, b) => a.localeCompare(b, 'zh')));
       const rowsValid = computed(() => rows.value.filter(r => r.name && r.kind));
 
+      // ⚠️ assets/index 与 assets/avatar|light_cone **不随仓库分发**（版权 + 体积），
+      //    所以新克隆 / 刚解压的 zip 里是空的，而 /api/iconlib 这时**会正常返回一个空库**
+      //    （不报错）→ 截图匹配静默命中 0 个区域，用户只看到「识别完成：0 个区域」。
+      //    必须显式判空，并给一个能自救的下载入口。
+      const idxMissing = ref(false);
+      const libOk = computed(() => !!lib.value && (lib.value.ch.length + lib.value.lc.length) > 0);
+
       const loadAll = async () => {
         try {
           lib.value = await (await fetch('/api/iconlib')).json();
-          idxCh.value = await (await fetch('/assets/index/cn_characters.json')).json();
-          idxLc.value = await (await fetch('/assets/index/cn_light_cones.json')).json();
+          // ⚠️ 必须 no-store：索引缺的时候那次 404 会被浏览器缓存住 ——
+          //    点完「下载索引与图标」再 fetch 命中的还是那份 404，于是提示条永远不消失，
+          //    用户以为没下成功（实际服务端日志里索引早就写好了）。
+          const rc = await fetch('/assets/index/cn_characters.json', { cache: 'no-store' });
+          const rl = await fetch('/assets/index/cn_light_cones.json', { cache: 'no-store' });
+          // ⚠️ 判据是「**索引文件**在不在」，不是「iconlib 空不空」：
+          //    /api/iconlib 只吐出「索引里有、且本机图标有效」的条目，所以一个还没抓到
+          //    任何记录的账号，索引下好了 iconlib 照样是空的 —— 用它当判据会把
+          //    「下载成功」误判成失败（二者是两件事：索引有没有 / 图标有没有）。
+          idxMissing.value = !(rc.ok && rl.ok);
+          if (!idxMissing.value) {
+            idxCh.value = await rc.json();
+            idxLc.value = await rl.json();
+          }
           saved.value = await (await fetch('/api/external')).json();
         } catch (e) { err.value = W.I18N.t('读取图标库 / 外部统计失败：') + e.message; }
+      };
+
+      /** 缺索引 / 图标时的一键补装 —— 走的就是「数据管理」页那个「只刷新图标与索引」接口 */
+      const fixLib = async () => {
+        busy.value = true; err.value = ''; okMsg.value = null;
+        try {
+          await fetch('/api/icons/refresh', { method: 'POST' });
+          await loadAll();
+          if (idxMissing.value) throw new Error(W.I18N.t('下载后索引仍然是空的，检查网络后重试'));
+        } catch (e) { err.value = W.I18N.t('下载索引与图标失败：') + e.message; }
+        finally { busy.value = false; }
       };
 
       // ── 上传 + 识别 ────────────────────────────────────────────────────────
@@ -64,6 +94,8 @@
         const list = [...files].filter(f => /^image\//.test(f.type) || /\.(png|jpe?g|webp)$/i.test(f.name));
         if (!list.length) { err.value = W.I18N.t('请选 PNG / JPG / WebP 图片'); return; }
         if (!lib.value) { err.value = W.I18N.t('图标库还没载入完，稍等一下再试'); return; }
+        // 空库不算「还没载入完」——新克隆 / 新 zip 的默认状态就是空，光等不会变好
+        if (!libOk.value) { err.value = W.I18N.t('图标库里还没有可用图标：先用本页上方「① 抓取新的抽卡记录」抓一次，用到的图标会自动补齐'); return; }
         busy.value = true; err.value = ''; okMsg.value = null; bad.value = []; prog.value = { msg: W.I18N.t('准备…'), pct: 0 };
         try {
           for (const f of list) {
@@ -126,7 +158,7 @@
         err.value = ''; okMsg.value = null; bad.value = []; dups.value = [];
         if (!rowsValid.value.length) { err.value = W.I18N.t('确认表里还没有有效行（每行都要有类型和名字）'); return; }
         const at = String(snapAt.value || '').trim().replace('T', ' ') || fmtNow();
-        if (!SNAP_RE.test(at)) { err.value = W.I18N.t('「快照时间」格式应为 2026-09-17 或 2026-09-17 09:07:12'); return; }
+        if (!SNAP_RE.test(at)) { err.value = W.I18N.t('「快照时间」格式应为 YYYY-MM-DD 或 YYYY-MM-DD HH:MM:SS'); return; }
         busy.value = true;
         try {
           const items = rowsValid.value.map(r => ({
@@ -207,6 +239,7 @@
         drawBoxes, sensitivity, fivesOnly, snapAt, snapTouched, snapHint, followNow,
         nameList, rowsValid, onPick, onDrop, onFileInput, addRow, delRow, clearRows,
         save, clearAll, scoreCls, thumbStyle, boxesOf,
+        idxMissing, libOk, fixLib,
       };
     },
     template: `
@@ -214,6 +247,16 @@
       <div class="ch">
         <span v-html="t('除官方抽卡接口之外，你在<b>别处看到的总量/持有状态</b>也能录进来：游戏内「角色 / 光锥」列表、星穹工坊统计页、米游社等。上传截图 → 平台用<b>本机图标库</b>做模板匹配（<b>全程离线，图片不出本机</b>）→ 你在下面确认表里核对/改正 → 保存。<br>')"></span>
         <span v-html="t('它只提供<b>星魂 / 叠影</b>，所以<b>不参与任何抽数口径</b>（总抽数 / 出金率 / 每 UP / 小保底不歪都不受影响）；与抽卡记录推算不一致时<b>以这里为准</b>，但会明确提示冲突在哪。')"></span>
+      </div>
+
+      <!-- 两段式：① 索引缺失 → 给下载按钮；② 索引已就绪但图标库空（还没抓过记录，
+           ensureIcons 只按记录补图标，没记录就一个都不下）→ 指引先抓取，别让用户找已消失的按钮 -->
+      <div v-if="idxMissing" class="row" style="margin:2px 0 0">
+        <span class="hint2" v-html="t('本机还没有角色 / 光锥索引与图标 —— 新下载的包里不含它们（版权原因不分发），需要联网下载一次，约几 MB。')"></span>
+        <button class="btn" :disabled="busy" @click="fixLib">{{ busy ? t('正在下载…') : t('下载索引与图标') }}</button>
+      </div>
+      <div v-else-if="lib && !libOk" class="row" style="margin:2px 0 0">
+        <span class="hint2" v-html="t('索引已就绪，但图标库还是空的：图标在<b>首次抓取抽卡记录</b>时按需自动补齐 —— 先用本页上方「① 抓取新的抽卡记录」抓一次，再回来上传截图。')"></span>
       </div>
 
       <div class="imp-drop" :class="{ busy }" @dragover.prevent @drop="onDrop"

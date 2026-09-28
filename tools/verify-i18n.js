@@ -8,8 +8,9 @@
 //   · 也看不见「模板里 t() 包了但包错地方」「拼接后中英混排」这类问题。
 // 所以两层都要：静态查漏词条，运行时查真实渲染结果。
 //
-// 判定方式：把页面里每个含中文的文本节点连它所在的 class 一起抓出来，
-//   按 --expect 给出的「内容层白名单」过一遍 —— 白名单外还有中文就是失败。
+// 判定方式：把页面里每个含中文的**文本节点**与**属性值**（title / placeholder / alt /
+//   aria-label）连它所在的 class 一起抓出来，按下面的「内容层白名单」过一遍 ——
+//   白名单外还有中文就是失败。
 //   白名单里的东西（卦辞爻辞 / 白话 / 黄历术语 / 十二时辰）**是刻意保留的中文**，
 //   英文里没有对等概念，不属于漏译（详见 web/i18n.dict.js 顶部说明）。
 //
@@ -81,6 +82,10 @@ const EXPECT = [
   // 出金吉凶徽章与它的短注（analysis 页，内容同「万年历内容层」）
   /jxb|jxt/,
 ];
+
+// 哪些命中来自**属性层**（txt 带 "[title] " 之类前缀）—— 只用于把统计口径拆开显示，
+// 判定仍然与文本节点共用上面同一套白名单。
+const isAttrHit = it => /^\[(title|placeholder|alt|aria-label)\] /.test(it.txt);
 
 // ── 与页面通信的小工具 ──────────────────────────────────────────────────────
 const D = '\u0001';   // 采集结果的字段分隔符（避开文本里可能出现的字符）
@@ -173,6 +178,31 @@ async function main() {
       }
       res.push(cls + ${JSON.stringify(D)} + pth.join('>') + ${JSON.stringify(D)} + s.trim().slice(0, 90));
     }
+    // ── 属性层：title / placeholder / alt / aria-label ──────────────────────
+    // ⚠️ 文本节点扫描**看不见属性**，而属性恰恰是最容易漏的一层（alt / placeholder 都当过漏网之鱼：
+    //    脚本只扫文本节点，靠人工 grep 才发现它们其实都走了 L()/t()）。
+    //    命中结果与文本节点同格式，只在 txt 前加 "[属性名] " 前缀以便区分。
+    var ATTRS = ['title', 'placeholder', 'alt', 'aria-label'];
+    var withAttr = document.body.querySelectorAll('[title],[placeholder],[alt],[aria-label]');
+    for (var j = 0; j < withAttr.length; j++) {
+      var e2 = withAttr[j];
+      for (var k = 0; k < ATTRS.length; k++) {
+        var v = e2.getAttribute(ATTRS[k]);
+        if (!v) continue;
+        var hit2 = false;
+        for (var i2 = 0; i2 < v.length; i2++) { if (isCJK(v.charAt(i2))) { hit2 = true; break; } }
+        if (!hit2) continue;
+        var cls2 = (typeof e2.className === 'string' ? e2.className : e2.tagName);
+        var pth2 = [];
+        var cur2 = e2;
+        while (cur2 && cur2 !== document.body) {
+          var c2 = (typeof cur2.className === 'string' ? cur2.className : '').split(/\\s+/).filter(Boolean).join('.');
+          if (c2) pth2.unshift(c2);
+          cur2 = cur2.parentElement;
+        }
+        res.push(cls2 + ${JSON.stringify(D)} + pth2.join('>') + ${JSON.stringify(D)} + '[' + ATTRS[k] + '] ' + v.trim().slice(0, 90));
+      }
+    }
     return JSON.stringify(res);
   })()`;
 
@@ -239,7 +269,9 @@ async function main() {
       const items = rows.map(r => { const a = r.split(D); return { cls: a[0], path: a[1], txt: a[2] }; });
       report[lang][p.key] = items;
       await shot(lang + '-' + p.key);
-      out('  ' + lang + ' ' + p.key.padEnd(11) + ' 含中文文本节点: ' + items.length);
+      const nAttr = items.filter(isAttrHit).length;
+      out('  ' + lang + ' ' + p.key.padEnd(11) + ' 含中文: ' + items.length
+        + '（文本 ' + (items.length - nAttr) + ' · 属性 ' + nAttr + '）');
     }
   }
 

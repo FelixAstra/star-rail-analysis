@@ -5,7 +5,7 @@
 **A local-first tracker and analyzer for your Honkai: Star Rail warp history.**
 Pull rates, pity progress, and every limited 5★ you own — computed on your own machine, from records you can audit line by line.
 
-<img src="assets/readme/analysis.png" alt="Warp analysis dashboard: seven summary cards showing total pulls, recent pulls, 5★ rate, pulls per limited 5★, and 50/50 win rates, above a per-banner pull table" width="880">
+<img src="assets/readme/analysis.png" alt="Warp analysis dashboard: seven summary cards showing total pulls, recent pulls, 5★ rate, pulls per limited 5★, and both 50/50 win rates" width="880">
 
 <sub>Fictional demo data. The app runs entirely on <code>127.0.0.1</code> and uploads nothing.</sub>
 
@@ -67,7 +67,7 @@ start.bat
 node tools\launch.js
 ```
 
-All platforms: the server prints its URL in the console (`http://127.0.0.1:8799/`; if that port is busy it steps up to the next free one and writes the real port to `.port`). The first launch downloads the game icon set (a few MB) in the background.
+All platforms: the server prints its URL in the console (`http://127.0.0.1:8799/`; if that port is busy it steps up to the next free one and writes the real port to `.port`). Nothing is downloaded at launch: the icon set and the name index arrive with your first fetch, and can be refreshed at any time from **Fetch & Data → Refresh icons and indexes only**.
 
 ### Want to see it populated first?
 
@@ -83,7 +83,7 @@ That writes a synthetic UID (`100000000`) and about 1,200 warp records spanning 
 
 ## Importing your warps
 
-In game: **Warp → View Details → Share**, then copy the link. It looks like `...api/getGachaLog?authkey=...`. Paste the whole thing into **Data & Import** — the `end_id` and `page` parameters are ignored.
+In game: **Warp → View Details → Share**, then copy the link. It looks like `...api/getGachaLog?authkey=...`. Paste the whole thing into **Fetch & Data** — the `end_id` and `page` parameters are ignored.
 
 Importing walks all six pools **sequentially**, switching endpoint by banner type — and that detail matters:
 
@@ -106,9 +106,9 @@ Importing walks all six pools **sequentially**, switching endpoint by banner typ
 
 Because of this, your local coverage ends up **longer than any single fetch** — which is why old pulls don't disappear when the API's window rolls forward.
 
-> The official API keeps about **one year** of history. To rebuild anything older, keep syncing over time or import a UIGF / SRGF file. No tool can recover pre-window history from a URL — the data is gone server-side.
+> The official API keeps about **one year** of history. Anything older can only be rebuilt if you fetched it while it was still inside the window, or entered it by hand from screenshots. No tool can recover pre-window history from a URL — the data is gone server-side.
 
-Each import also refreshes the **name / path index** and downloads any **missing character avatars and light cone icons** (validated by PNG magic bytes, not just "the file exists").
+Each import also refreshes the **name / path index** — both the Chinese and the English one, the latter being where the English UI gets its names — and downloads any **missing character avatars and light cone icons** (validated by PNG magic bytes, not just "the file exists").
 
 ## Data & privacy
 
@@ -127,9 +127,9 @@ This repository contains **no real player data**. Here is the full inventory:
 
 Clone this repo and run it, and nothing you see is connected to the author's account.
 
-The runtime is quiet too: the server **listens only on `127.0.0.1`**, and makes exactly two kinds of outbound request — the warp URL you paste yourself, and icon downloads. Banner dates are the only other networked call, and they fall back to a cached or built-in table when offline.
+The runtime is quiet too: the server **listens only on `127.0.0.1`**, and makes only three kinds of outbound request — the warp URL you paste yourself, icon and index downloads from the resource repository, and the banner calendar. The last two are incidental: existing assets are reused, and banner dates fall back to a cached or built-in table when offline.
 
-> **Backups:** your entire history is `data/records.json` plus `data/snapshots/`. Copy that folder and you have everything. Deleting `data/` resets your records; `assets/` re-downloads itself.
+> **Backups:** your entire history is `data/records.json` plus `data/snapshots/`. Copy that folder and you have everything. Deleting `data/` resets your records; `assets/` is rebuilt by your next fetch, or by the refresh button in **Fetch & Data**.
 >
 > Since `data/` holds your UID, never force-add it to a repository with `git add -f`, and check before pushing to a repo of your own.
 
@@ -142,7 +142,7 @@ Five pages, organised in the sidebar. Both language names are given, because the
 | **Warp Analysis** (抽卡分析) | Current-period conclusions: a seven-card overview, and banner detection for character / light cone warps with per-pull gold details |
 | **Characters** (角色管理) | 5★ characters × their signature light cones (eidolon, superimposition, and where each number came from), plus a 5★ light cone list grouped by path |
 | **Divination** (八卦占卜) | Six-line casting (coin or yarrow-stalk), today's auspicious hours, recommended dates inside the current banner, and a **recommended pull count** |
-| **Data & Import** (抓取与数据管理) | Paste a warp link, inspect data coverage, see each banner's time bounds, edit the manual baseline, attach screenshot-derived stats, run self-checks |
+| **Fetch & Data** (抓取与数据管理) | Paste a warp link, inspect data coverage, see each banner's time bounds, edit the manual baseline, attach screenshot-derived stats, run self-checks |
 | **Handbook** (解释说明) | Nine chapters explaining where every number comes from and how it is defined, with annotated screenshots |
 
 Deep methodology deliberately lives in the **Handbook**, not here — a README should not be a manual.
@@ -227,7 +227,8 @@ star-rail-analysis/
 │   ├── check-i18n.js        Static bilingual coverage check (runs in CI)
 │   ├── verify-i18n.js       Headless-Chrome check for strings left untranslated on screen
 │   ├── lib/i18n-keys.js     Shared scanners for t('…') keys and L(zh, en) pairs
-│   └── shoot-help.js        Re-shoot handbook screenshots via headless Chrome
+│   ├── shoot-help.js        Re-shoot the handbook screenshots via headless Chrome
+│   └── shoot-readme.js      Re-shoot this file's screenshots, incl. the four-theme mosaic
 ├── data/                    Your records — git-ignored in full
 └── assets/
     ├── logo.png             Project logo
@@ -251,7 +252,7 @@ node tools/check-i18n.js          # bilingual coverage: dictionary keys, placeho
 
 CI (`.github/workflows/ci.yml`) runs on every push: a syntax check over every JS file, the divination engine assertions, the bilingual coverage check, and the boot smoke test (`tools/ci-smoke.js`, which exports a clean tree to a temp dir, starts the server on empty data, and probes eight endpoints). Pushing a `v*` tag additionally builds the release zip and publishes it via `.github/workflows/release.yml`.
 
-The handbook screenshots are re-shot with `tools/shoot-help.js`, a headless-Chrome script that drives the app over the DevTools Protocol. It needs **Node 22+** for the global `WebSocket` API.
+Screenshots are re-shot with two headless-Chrome scripts that drive the app over the DevTools Protocol: `tools/shoot-help.js` for the handbook, `tools/shoot-readme.js` for the images in this file — including the four-theme mosaic, which is composited inside a throwaway page so that no image tooling is required. Both need **Node 22+** for the global `WebSocket` API, **demo data**, and a server already running; pass `--lang=en` for the English UI these images use.
 
 **A gotcha worth knowing if you write your own checks:** several pages use `loading="lazy"` images, so any automated pass must scroll the whole page before measuring them — otherwise it reads "not loaded yet" as "broken".
 

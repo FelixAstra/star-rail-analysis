@@ -1063,10 +1063,10 @@
       '“Total warps” must be a positive whole number',
     '「五星数」要填一个非负整数':
       '“5★ count” must be a whole number, zero or more',
-    '「快照时间」格式应为 2026-09-16 或 2026-09-16 09:07:12':
-      '“Snapshot time” must look like 2026-09-16 or 2026-09-16 09:07:12',
-    '「快照时间」格式应为 2026-09-17 或 2026-09-17 09:07:12':
-      '“Snapshot time” must look like 2026-09-17 or 2026-09-17 09:07:12',
+    // ⚠️ 之前这里有两个条目，分别写死 2026-09-16 / 2026-09-17（按各自当时的"今天"抄下来的），
+    //    同一句提示在两个页面显示成不同日期。改成格式占位符，只留一条。
+    '「快照时间」格式应为 YYYY-MM-DD 或 YYYY-MM-DD HH:MM:SS':
+      '“Snapshot time” must look like YYYY-MM-DD or YYYY-MM-DD HH:MM:SS',
     '保存失败：':
       'Save failed: ',
     '刷新图标失败：':
@@ -1085,6 +1085,24 @@
       'Entered by hand; no longer following',
     '已手动填写，不再跟随当前时间':
       'Entered by hand; no longer following the current time',
+
+    // ── 图标库兜底：新克隆 / 刚解压的 zip 里 assets/index 与图标是空的 ──────────
+    //    （版权原因不随仓库分发），/api/iconlib 这时会正常返回空库、截图匹配静默命中 0 个区域，
+    //    所以那一页必须给一条能自救的提示 + 下载入口。
+    '本机还没有角色 / 光锥索引与图标 —— 新下载的包里不含它们（版权原因不分发），需要联网下载一次，约几 MB。':
+      'This machine has no character / light cone index or icons yet — they are not redistributed for copyright reasons, and one online download of a few MB will fetch them.',
+    '下载索引与图标':
+      'Download index and icons',
+    '正在下载…':
+      'Downloading…',
+    '下载索引与图标失败：':
+      'Downloading the index and icons failed: ',
+    '下载后索引仍然是空的，检查网络后重试':
+      'The index is still empty after downloading — check your connection and try again',
+    '图标库里还没有可用图标：先用本页上方「① 抓取新的抽卡记录」抓一次，用到的图标会自动补齐':
+      'The icon library has no usable icons yet: run “① Fetch new warp records” at the top of this page first — the icons your records need are downloaded with it',
+    '索引已就绪，但图标库还是空的：图标在<b>首次抓取抽卡记录</b>时按需自动补齐 —— 先用本页上方「① 抓取新的抽卡记录」抓一次，再回来上传截图。':
+      'The index is ready, but the icon library is still empty: icons are filled in <b>on your first fetch</b>, as needed — run “① Fetch new warp records” at the top of this page first, then come back and upload your screenshots.',
   };
 
   root.W.DICT_EN = Object.assign({}, RUNTIME, LITERAL);
