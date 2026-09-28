@@ -1,7 +1,11 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // 应用外壳：左侧功能栏 + 右侧内容区
-// 左栏分四组：分析（抽卡分析 / 角色管理）· 数据（抓取与数据管理）· 帮助（解释说明）· 后续开发（占位）
+// 左栏分四组：分析（抽卡分析 / 卡池节奏 / 角色管理 / 八卦占卜）· 数据（抓取与数据管理）·
+// 帮助（解释说明）· 后续开发（占位）
 // 跨页跳转用 app.provide('goto') 下发，页面内部用 inject:['goto'] 取（例如「详见解释说明」）。
+//
+// ⚠️ 导航顺序即 .side .navi 的下标 —— tools/verify-i18n.js、shoot-help.js、shoot-readme.js、
+//    verify-glass.js 都按下标点导航。**在这里插一条就必须同步改那四个脚本的下标**。
 // ─────────────────────────────────────────────────────────────────────────────
 (function () {
   'use strict';
@@ -10,6 +14,7 @@
   const NAV = [
     { g: '分析', items: [
       { k: 'analysis', ic: '◎', name: '抽卡分析' },
+      { k: 'bannerphase', ic: '◷', name: '卡池节奏' },
       { k: 'roles', ic: '✦', name: '角色管理' },
       { k: 'divination', ic: '☯', name: '八卦占卜' },
     ] },
@@ -197,6 +202,8 @@
         </div>
         <template v-else>
           <w-analysis-page v-if="page === 'analysis'" :a="a"></w-analysis-page>
+          <!-- 卡池节奏：不依赖分析结果（自己读 /api/banner-timing），所以即使 a 为空也能进 -->
+          <w-banner-phase-page v-else-if="page === 'bannerphase'" :a="a"></w-banner-phase-page>
           <w-role-page v-else-if="page === 'roles'" :a="a"></w-role-page>
           <w-divination-page v-else-if="page === 'divination'" :a="a"></w-divination-page>
           <w-help-page v-else-if="page === 'help'" :a="a"></w-help-page>
@@ -257,6 +264,7 @@
   app.component('w-shot-import', W.ShotImport);
   // 注：w-audit（数据校验：与工坊对账）已按需求 1.2-4 下线
   app.component('w-analysis-page', W.AnalysisPage);
+  app.component('w-banner-phase-page', W.BannerPhasePage);
   app.component('w-role-page', W.RolePage);
   app.component('w-divination-page', W.DivinationPage);
   app.component('w-help-page', W.HelpPage);

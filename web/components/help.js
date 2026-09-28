@@ -41,6 +41,8 @@
       szh: '万年历日家 / 时家黄黑道 · 分析页的两张图表', sen: 'almanac day and hour indicators · the two chart panels' },
     { n: '9', id: 'hp-9', zh: '日常维护手册', en: 'Routine maintenance',
       szh: '抽了新卡、重新截了工坊页之后做什么', sen: 'what to do after pulling new warps or re-screenshotting the workshop' },
+    { n: '10', id: 'hp-10', zh: '卡池节奏怎么读', en: 'Reading the banner rhythm',
+      szh: '前／中／后是按谁的三等分 · 哪些抽卡没被算进去', sen: 'whose three-way split it is · which warps were left out' },
   ];
 
   W.HelpPage = {
@@ -673,6 +675,32 @@
             </ul>
           </div>
         </details>
+      </section>
+
+      <!-- ⑩ ─────────────────────────────────────────────────────────────── -->
+      <section class="hp-sec" id="hp-10">
+        <h2 id="hp-10-t">{{ L('10 · 卡池节奏怎么读', '10 · Reading the banner rhythm') }} <small>{{ L('前／中／后是按「这个卡池自己」的开放时间三等分', 'early / middle / late splits that banner’s own run into thirds') }}</small></h2>
+        <p class="hp-p" v-html="L('「卡池节奏」页回答一个问题：<b>每一颗五星出现时，它所属的那一期卡池走到了自己开放期的前段、中段还是后段？</b>时间单位是<b>每个真实卡池自己的开放区间</b>，不是版本上／下半 —— 同一个版本里可以同时开着「整版池」和「只在半期开的池」，同一天出的金，在整版池里可能还是前期、在半期池里已经是中期。所以版本号在这一页只当标签，<b>不参与阶段边界</b>。', 'The Banner Rhythm page answers one question: <b>when each 5★ appeared, was the banner it belongs to in the early, middle or late part of its own run?</b> The time unit is <b>each banner’s own open interval</b>, not a version first or second half — one version can run a whole-version banner alongside half-version ones, so a 5★ pulled on the same day can be “early” in the long banner and already “middle” in the short one. Version numbers are labels here and <b>never set a stage boundary</b>.')"></p>
+        <table class="tb">
+          <thead><tr><th>{{ L('阶段', 'Stage') }}</th><th>{{ L('判定区间（S = 开池，E = 关池，D = E − S，T = 抽卡时刻）', 'Interval (S = opens, E = closes, D = E − S, T = warp time)') }}</th></tr></thead>
+          <tbody>
+            <tr><td>{{ L('前期', 'Early') }}</td><td class="mono">S ≤ T &lt; S + D/3</td></tr>
+            <tr><td>{{ L('中期', 'Middle') }}</td><td class="mono">S + D/3 ≤ T &lt; S + 2D/3</td></tr>
+            <tr><td>{{ L('后期', 'Late') }}</td><td class="mono">S + 2D/3 ≤ T &lt; E</td></tr>
+          </tbody>
+        </table>
+        <ul class="hp-ul">
+          <li v-html="L('用<b>真实毫秒</b>判定、不先按天数取整；边界正好落在三分点上的记录进<b>后</b>一档；<code>T = E</code> 已不属于该池，会标成区间异常而不是硬塞进后期。', 'Stages are decided in <b>real milliseconds</b>, never by rounding to days first; a record that lands exactly on a boundary goes into the <b>later</b> stage; <code>T = E</code> no longer belongs to that banner and is flagged rather than forced into “late”.')"></li>
+          <li v-html="L('<b>一抽只归一个池、只进一个阶段。</b>归期按四层判据依次判定：① 该 ID 的全部记录都落在一个已核实区间内（唯一命中）；② 命中多个候选时，用<b>这一池抽到的五星 UP 名</b>去认领；③ 候选区间的起止不同、但每一抽算出的阶段都一样 → <b>阶段可确定、池名未确认</b>；④ 都不成立 → 进「待核实」，<b>绝不按数组顺序或「最像的名字」静默分配</b>。', '<b>One warp belongs to exactly one banner and one stage.</b> Attribution runs through four tests: ① every record of that ID falls inside a single verified interval (unique hit); ② when several candidates match, the banner is claimed by <b>the 5★ UP names pulled from it</b>; ③ when candidates differ in window but every warp still lands in the same stage → <b>the stage is settled, the banner name is not</b>; ④ otherwise it goes to “Pending verification” — <b>nothing is ever assigned silently by array order or by “the most likely name”</b>.')"></li>
+          <li v-html="L('<b>边界不确定</b>：历史表里有些端点只精确到「日」（例如版本更新日是维护结束后开池，公告不写具体时刻）。这时端点的可行区间会去和已知事实取交集 —— 包括<b>本 ID 自己的首抽/末抽时刻</b>（开池不可能晚于本 ID 首抽）。所有可行端点组合都必须给出同一个阶段，否则这一抽标为<b>边界不确定</b>并<b>排除出阶段分母</b>，不猜。', '<b>Boundary uncertainty:</b> some endpoints in the history table are only precise to the day (a new version opens after maintenance, and the notice gives no clock time). The feasible range is intersected with known facts — including <b>this ID’s own first and last warp</b>, since a banner cannot have opened after its first pull. Every feasible endpoint combination must yield the same stage; otherwise the warp is marked <b>boundary-uncertain</b> and <b>left out of the denominator</b> rather than guessed at.')"></li>
+          <li v-html="L('<b>没被算进结论的有四类</b>，页面上都会单独报数：① <b>待核实</b>（歧义或历史表未覆盖，含已知缺口）；② <b>边界不确定</b>；③ <b>未纳入无时间戳补录</b> —— 截图补录的历史汇总没有逐抽时间，谁也无法知道它落在哪一段；④ <b>进行中／暂定卡池</b>：起止来自运行时快照、还没人工核实，或官方只写「长期开放」，页面上单独成区，<b>不计入正式总览</b>。', '<b>Four groups stay out of the totals</b>, each reported separately: ① <b>pending verification</b> (ambiguous, or not covered by the history table, including known gaps); ② <b>boundary-uncertain</b>; ③ the <b>undated backfill</b> — screenshot backfills carry no per-warp time, so nobody can know which third they fell in; ④ <b>banners in progress or provisional</b>: windows taken from the runtime snapshot, not yet checked by hand, or officially “open long-term”. They get their own section and <b>do not enter the official totals</b>.')"></li>
+          <li v-html="L('<b>这一页不能证明什么。</b>出金是随机的，保底进度、抽卡集中时段和样本量都会影响结果；某个阶段金数更多，<b>只能说明你那段抽得更多</b>，<b>不能说明官方概率在那个时段变高</b>。所以页面上「你的抽数分布」与「你的五星分布」永远并排、同色系，不画一根金色高柱。', '<b>What this page cannot show.</b> 5★ pulls are random; pity progress, when you happened to play, and sample size all move the numbers. More 5★ in one third <b>only means more warps were made then</b> — it <b>cannot show the official rates rose</b>. That is why “your warp distribution” and “your 5★ distribution” always sit side by side in the same neutral palette, with no single gold column.')"></li>
+          <li v-html="L('<b>数据分层。</b>历史卡池真值表 <code>core/banner-history.json</code> 随代码发布（每条带来源链接、时区与精度，<b>不含任何账号数据</b>），第三方日历只会写进运行时快照 <code>data/banner-cache.json</code>，<b>永不覆盖已核实的官方边界</b>。本地记录按 <code>+08:00</code> 服务器时间解释。每次启动会后台检查一次当前卡池日历；每次抓取合并记录、或日历被修正时都会自动重算（重算与否看抽卡记录与日历两个修订号）。', '<b>Data layering.</b> The verified history table <code>core/banner-history.json</code> ships with the code (every row carries a source link, a time zone and a precision, and <b>no account data at all</b>); the third-party calendar only ever writes the runtime snapshot <code>data/banner-cache.json</code> and <b>never overwrites a verified official boundary</b>. Local records are read as <code>+08:00</code> server time. Every start runs a background calendar check, and the report recomputes after a fetch merges records or whenever the calendar is corrected — driven by two revisions, one for records and one for the calendar.')"></li>
+        </ul>
+        <div class="hp-note" v-html="L('已知限制：历史表覆盖 <b>3.6 上半 ~ 4.6</b>；4.6 起为暂定快照。联动池里有一个 <code>gacha_id</code> 的记录跨度长达数月、而公开资料给不出可核实的开放实例，整池列为<b>已知缺口</b>。', 'Known limits: the history table covers <b>version 3.6 first half through 4.6</b>; from 4.6 on it is a provisional snapshot. One collab-banner <code>gacha_id</code> spans several months of records while public sources give no verifiable opening, so that whole pool is listed as a <b>known gap</b>.')"></div>
+        <div class="hp-actions">
+          <button class="btn" @click="goto('bannerphase')">{{ L('◷ 去 卡池节奏', '◷ Open Banner Rhythm') }}</button>
+        </div>
       </section>
 
       <div class="foot" v-html="L('本页只解释口径，不产生新数据 · 所有计算都在本机完成<br>配图用演示数据拍摄，只作界面示意；正文数字是你本机的实时值', 'This page only explains definitions and produces no new data · every calculation runs on this machine<br>The illustrations were captured with demo data and are for interface reference only; the figures in the text are live values from your own machine')"></div>

@@ -23,6 +23,7 @@
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const URL_CAL = 'https://api.ennead.cc/mihoyo/starrail/calendar?lang=zh-cn';
 // ⚠️ 同一个日历源带多语言：?lang=en 的 banners[] 与 zh-cn 结构完全一致、id 一一对应。
@@ -118,6 +119,62 @@ function writeCache(obj) {
     fs.mkdirSync(path.dirname(CACHE_FILE), { recursive: true });
     fs.writeFileSync(CACHE_FILE, JSON.stringify(obj, null, 1));
   } catch (e) { /* 缓存写不进去不影响主流程 */ }
+}
+
+// ── 运行时快照的修订号 ───────────────────────────────────────────────────────
+// 卡池日历被修正时，**抽卡记录一条都没变**，但「这一抽属于哪一期」会变 → 报表必须重算。
+// 所以除了 records.json 的 mtime，还要有一个日历修订号参与缓存键（需求 §6.4 / §8.4）。
+function revisionOf(list) {
+  const sig = (list || []).map(b => [b.id, b.version, b.start, b.end,
+    (b.upChars || []).join('/'), (b.upCones || []).join('/')].join('~')).join('|');
+  return crypto.createHash('sha1').update(sig).digest('hex').slice(0, 10);
+}
+
+// 读取当前快照的元信息（供 /api/status、/api/revisions、缓存键使用）。
+// ⚠️ 按 (mtime,size) 记忆 —— 沙箱里 open() 很贵，不能每个请求都重新读盘。
+let _ci = { key: '', val: null };
+function cacheInfo() {
+  let key = 'none';
+  try { const s = fs.statSync(CACHE_FILE); key = s.mtimeMs + ':' + s.size; } catch (e) { key = 'none'; }
+  if (_ci.key === key) return _ci.val;
+  const c = readCache();
+  const val = c && Array.isArray(c.banners)
+    ? {
+        ok: true, fetchedAt: c.fetchedAt || 0, fetchedAtText: c.fetchedAt ? fmt(Math.floor(c.fetchedAt / 1000)) : '',
+        revision: c.revision || revisionOf(c.banners), count: c.banners.length,
+        stale: !c.fetchedAt || (Date.now() - c.fetchedAt) >= CACHE_TTL,
+        source: 'cache',
+      }
+    : { ok: false, fetchedAt: 0, fetchedAtText: '', revision: 'none', count: 0, stale: true, source: 'builtin' };
+  _ci = { key, val };
+  return val;
+}
+
+/** 快照里记的「中文名 → 官方英文名」对照（取自同一日历源的 ?lang=en，非自译） */
+function cacheNames() {
+  const c = readCache();
+  return (c && c.names && typeof c.names === 'object') ? c.names : {};
+}
+
+// ── 后台检查（服务启动即触发，不阻塞首屏）────────────────────────────────────
+// 需求 §2：本地服务**每次启动**都发起一次联网检查，即使缓存没过期；
+// 并发触发时只允许一次真实刷新（防并发），失败不抛给调用方（离线照样能用缓存）。
+let _inflight = null;
+function checkInBackground(o) {
+  if (_inflight) return _inflight;
+  const started = Date.now();
+  _inflight = calendar(Object.assign({}, o || {}, { force: true }))
+    .then(r => {
+      console.log('[卡池日历] 后台检查完成：' + r.source + ' · ' + r.list.length + ' 条 · rev=' + r.revision
+        + ' · ' + (Date.now() - started) + 'ms' + (r.warn ? ' · ' + r.warn : ''));
+      return r;
+    })
+    .catch(e => {
+      console.log('[卡池日历] 后台检查失败（保留上次有效快照，不影响本地报表）：' + (e && e.message || e));
+      return null;
+    })
+    .then(r => { _inflight = null; return r; });
+  return _inflight;
 }
 
 // ── 解析日历 ─────────────────────────────────────────────────────────────────
@@ -303,7 +360,7 @@ async function calendar(o) {
       const fresh = pairNames(raw, rawEn);
       if (Object.keys(fresh).length) names = fresh;
       source = 'ennead'; fetchedAt = nowStr();
-      writeCache({ fetchedAt: Date.now(), banners: list, names: names });
+      writeCache({ fetchedAt: Date.now(), banners: list, names: names, revision: revisionOf(list) });
     } catch (e) {
       warn = '拉取卡池日历失败（' + e.message + '），已降级';
       if (cache && Array.isArray(cache.banners) && cache.banners.length) {
@@ -313,6 +370,10 @@ async function calendar(o) {
       }
     }
   }
+
+  // 修订号取自**未经本地校准**的快照内容：它是「日历本身」的指纹。
+  // 若把它算在校准之后，抽卡记录一变修订号就跟着变，那就退化成了 records 的 mtime。
+  const revision = (cache && cache.revision && list === cache.banners) ? cache.revision : revisionOf(list);
 
   list = fillHalf(calibrateByRecords(list.map(b => Object.assign({}, b)), o.records));
 
@@ -339,7 +400,7 @@ async function calendar(o) {
 
   return {
     ok: !!cur,
-    source, fetchedAt, stale, warn,
+    source, fetchedAt, stale, warn, revision,
     list, terms, current, currentTerm, next, remain,
     // 中文名 → 官方英文名（取自同一日历源的 ?lang=en）。
     // 前端 W.I18N.registerNames() 收下它，新版本角色/光锥就有了官方英文名 ——
@@ -412,4 +473,4 @@ function mapGachaIds(terms, records) {
   return out;
 }
 
-module.exports = { calendar, mapGachaIds, normalize, mergeTerms, calibrateByRecords, fromBuiltin, fmt, parse, addDays, pairNames, CACHE_FILE, URL_CAL, URL_CAL_EN, BUILTIN };
+module.exports = { calendar, mapGachaIds, normalize, mergeTerms, calibrateByRecords, fromBuiltin, fmt, parse, addDays, pairNames, revisionOf, cacheInfo, cacheNames, checkInBackground, CACHE_FILE, URL_CAL, URL_CAL_EN, BUILTIN };

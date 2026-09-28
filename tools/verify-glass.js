@@ -320,25 +320,25 @@ const ok = (cond, msg, extra) => {
   await sleep(600);
   await shot('glass-analysis.png');
 
-  await clickNav(1);
+  await clickNav(2);
   await raw('(window.scrollTo(0,0),1)'); await sleep(700);
   await shot('glass-roles.png');
 
-  await clickNav(4);
+  await clickNav(5);
   await raw('(window.scrollTo(0,0),1)'); await sleep(700);
   await shot('glass-help.png');
 
   // 占卜页：整套 --dz-* 令牌（神坛、罗盘、龟壳、铜钱全是 SVG）也要在亮玻璃下成立
-  await clickNav(2);
+  await clickNav(3);
   await raw('(window.scrollTo(0,0),1)'); await sleep(1400);
   await shot('glass-divination.png');
 
-  await clickNav(3);
+  await clickNav(4);
   await raw('(window.scrollTo(0,0),1)'); await sleep(900);
   await shot('glass-data.png');
 
   // 角色卡网格特写：玻璃卡 + 稀有度环 + 白色亮边在亮底上的观感
-  await clickNav(1);
+  await clickNav(2);
   await sleep(700);
   try { await shot('glass-grid-clip.png', await clipOf('.grid', 14)); }
   catch (e) { console.log('    · 跳过 .grid 裁剪：' + e.message); }

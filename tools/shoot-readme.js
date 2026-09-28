@@ -179,8 +179,8 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   await setPref('sr.theme', 'vivid', 'data-theme');   // README 的主图用默认主题
 
   await shotPage(0, 'analysis.png', { w: 1200, h: 900 });        // 900 高：页头 + 七张总貌卡刚好一屏
-  await shotPage(1, 'roles.png', { sel: '.pgrid' });             // 滚过「怎么读这两张图」的说明块
-  await shotPage(2, 'divination.png', {});
+  await shotPage(2, 'roles.png', { sel: '.pgrid' });             // 滚过「怎么读这两张图」的说明块
+  await shotPage(3, 'divination.png', {});
 
   // ── 四主题拼图：2×2，每格 600×408，左上角叠主题名 ──────────────────────────
   if (!want('themes.png')) {

@@ -32,6 +32,8 @@
       const job = ref(null);
       const busy = ref(false);
       const err = ref('');
+      // 图标环节的局部失败：**不影响**已合并的抽卡数据，只单独提示（需求 §8.5）
+      const iconWarn = ref('');
       // 保存成功提示存**参数对象**而不是拼好的字符串 —— 切语言时模板里重算即可跟着变
       const savedMsg = ref(null);      // { pulls, gold, at } | null
       // ⚠️ 快照时间是**精确到秒的当下时刻**，并且每秒跟随当前时间走 —— 用户要求「自动取到 now 到分秒且实时同步」。
@@ -71,7 +73,12 @@
           if (!j.running) {
             clearInterval(timer); timer = null; busy.value = false;
             await loadStatus();
-            if (!j.error) { emit('refetch'); }
+            // ⚠️ 判据不能是「整个任务无错误」：图标环节失败时记录其实已经合并进仓，
+            //    前端若不刷新，用户看到的是「点了没反应」的假失败（需求 §8.5）。
+            //    所以任务一结束就重读一次 —— 分析缓存按文件 mtime/日历修订号判等，
+            //    没有变化时这次重读是廉价的，不会白算。
+            emit('refetch');
+            if (j.iconError) { iconWarn.value = j.iconError; }
           }
         } catch (e) { /* 轮询失败就下次再试 */ }
       };
@@ -167,7 +174,7 @@
         return W.I18N.t('已手动填写，不再跟随当前时间');
       });
       return {
-        link, st, job, busy, err, savedMsg, form, snapTouched, onSnapInput, followNow,
+        link, st, job, busy, err, iconWarn, savedMsg, form, snapTouched, onSnapInput, followNow,
         startFetch, saveMeta, refreshIcons, loadStatus, emitRefetch,
         srcTable, ic, earliest, active, fillRows, snapHint,
       };
@@ -202,6 +209,7 @@
         </div>
         <div v-if="job && job.result" class="note2">
           <span v-html="t('<b>本次结果：</b>抓到 <b>{total}</b> 条中的新增 <b>{added}</b> 条（重复 {dup} 条）；本地仓合计 <b>{total2}</b> 条 [{from} → {to}]；图标新增 <b>{ic}</b> 个、失败 {icf} 个。', { total: job.result.merged.total, added: job.result.merged.added, dup: job.result.merged.dup, total2: job.result.merged.total, from: job.result.merged.from.slice(0,10), to: job.result.merged.to.slice(0,10), ic: job.result.icons.downloaded, icf: job.result.icons.failed.length })"></span>
+          <div v-if="iconWarn" class="hint2">{{ t('图标这一环节出错了，但抽卡记录已经合并进本地仓，页面上的数据是最新的。') }}<code>{{ iconWarn }}</code></div>
         </div>
         <table class="tb" v-if="job && job.result">
           <thead><tr><th>{{ t('卡池') }}</th><th>{{ t('端点') }}</th><th class="hn">{{ t('记录数') }}</th><th>{{ t('区间') }}</th></tr></thead>

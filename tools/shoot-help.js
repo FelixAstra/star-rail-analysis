@@ -119,7 +119,7 @@ const dmSub = (i, sub) => '(()=>{const c=' + dmCard(i) + ';return c?c.querySelec
   const scrollThrough = async () => {
     await raw('(async()=>{const H=document.body.scrollHeight;for(let y=0;y<H;y+=500){window.scrollTo(0,y);await new Promise(r=>setTimeout(r,60));}window.scrollTo(0,H);await new Promise(r=>setTimeout(r,250));window.scrollTo(0,0);await new Promise(r=>setTimeout(r,400));return 1})()');
   };
-  // 左侧导航按下标点：0=抽卡分析 1=角色管理 2=八卦占卜 3=抓取与数据管理 4=解释说明
+  // 左侧导航按下标点：0=抽卡分析 1=卡池节奏 2=角色管理 3=八卦占卜 4=抓取与数据管理 5=解释说明
   const clickNav = async idx => {
     const ok = await raw('(()=>{const b=document.querySelectorAll(".side .navi")[' + idx + '];if(!b)return 0;b.click();return 1})()');
     if (!ok) throw new Error('左侧导航第 ' + idx + ' 项点不到（.side .navi 没渲染出来？）');
@@ -221,7 +221,7 @@ h2{margin:0 0 6px;font-size:18px;font-weight:650;color:#2b3550}
   await clipBy(q('.sts'), '02-overview.png', { pad: 12, maxW: 1440, maxH: 700 });
 
   // ── 数据管理页 ───────────────────────────────────────────────────────────
-  await clickNav(3);
+  await clickNav(4);
   await scrollThrough();
   // 03 只截表格（不要卡片外框与标题，跟旧版取景一致）
   await clipBy(dmSub(2, '.tb'), '03-pool-bounds.png', { pad: 10, maxH: 900 });
@@ -285,7 +285,7 @@ h2{margin:0 0 6px;font-size:18px;font-weight:650;color:#2b3550}
   await clipBy(q('.bpane-11 details.pool-row[open]'), '05-detail.png', { pad: 10, maxH: 1200 });
 
   // ── 06 / 07 角色管理两页 ─────────────────────────────────────────────────
-  await clickNav(1);
+  await clickNav(2);
   await scrollThrough();
   await clipBy(q('.pgrid'), '06-roles.png', { pad: 12, maxH: 2400 });
   await clipBy(q('.g5l'), '07-cones.png', { pad: 12, maxH: 2400 });

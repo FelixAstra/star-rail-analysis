@@ -19,6 +19,7 @@ const external = require('../core/external.js');
 const divination = require('../core/divination.js');
 const zeri = require('../core/zeri.js');
 const banner = require('../core/banner.js');
+const bannerPhase = require('../core/banner-phase.js');
 const { fetchAll } = require('./fetch.js');
 
 const ROOT = path.join(__dirname, '..');
@@ -79,9 +80,13 @@ const pushLog = (j, o) => { j.logs.push(Object.assign({ t: new Date().toLocaleTi
 // ── 分析结果缓存 ────────────────────────────────────────────────────────────
 // ⚠️ key 里**必须带 external.json 的 mtime**：外部统计（第三源）会改星魂/叠影，
 //    只盯 records.json 的话，上传确认完截图页面不会变，看起来像「没保存成功」。
+// ⚠️ 还必须带上**卡池日历修订号**：日历被修正时抽卡记录一条都没变，但「这一抽属于哪一期」
+//    会变 → 不带上就会一直显示旧结论（需求 §6.4 / §8.4）。
 let cache = null, cacheKey = '';
 const statKey = f => { try { const s = fs.statSync(path.join(ROOT, f)); return s.mtimeMs + ':' + s.size; } catch (e) { return 'none'; } };
-const dataKey = () => statKey('data/records.json') + '|' + statKey('data/external.json') + '|' + statKey('data/meta.json');
+const calKey = () => banner.cacheInfo().revision;
+const dataKey = () => statKey('data/records.json') + '|' + statKey('data/external.json')
+  + '|' + statKey('data/meta.json') + '|cal:' + calKey();
 function getAnalysis(force) {
   const k = dataKey();
   if (force || !cache || cacheKey !== k) { cache = analyze(); cacheKey = k; }
@@ -108,6 +113,8 @@ const ROUTES = {
       // 外部统计（第三源）的现状：页面要显示「已录入 N 条 / 上传过 N 张截图 / 最后更新时间」
       external: { items: (ext.items || []).length, shots: (ext.shots || []).length, updatedAt: ext.updatedAt || '' },
       icons: icons.iconStats(),
+      // 卡池日历快照的现状：页面要显示「检查中／已更新／离线使用缓存」、来源与时间
+      calendar: banner.cacheInfo(),
       node: process.version,
       job: job ? { id: job.id, running: job.running, phase: job.phase } : null,
     });
@@ -172,20 +179,37 @@ const ROUTES = {
         pushLog(j, { phase: 'merge', msg: '合并进本地仓（按 id 去重，取并集不覆盖）…' });
         const merged = store.mergeRecords(r.records, { endpoint: 'getGachaLog + getLdGachaLog' });
         pushLog(j, { phase: 'merge', msg: '本次抓到 ' + r.records.length + ' 条，新增 ' + merged.added + ' 条，已有 ' + merged.dup + ' 条；本地仓合计 ' + merged.total + ' 条' });
+
+        // ⚠️ 「记录已合并」与「图标处理结果」是两件独立的事（需求 §8.5）：
+        //    记录一旦进仓，就必须立刻重算分析、广播修订号、让前端刷新 —— 不能等图标。
+        //    图标失败只影响图标提示，绝不能把已经合并的抽卡数据伪装成「没更新」。
+        getAnalysis(true);
+        j.result = { fetch: r.report, endpoints: r.endpoints, merged, recordsMerged: true };
+        j.revisions = { records: statKey('data/records.json'), calendar: calKey() };
+        pushLog(j, { phase: 'merge', msg: '记录已合并，分析结果已重算（新增 ' + merged.added + ' 条同样计入）' });
+
+        // 出现日历没覆盖的新池 ID 时，后台再抽查一次卡池日历（不阻塞本次任务）
+        banner.checkInBackground({ records: store.readStore().records });
+
         j.phase = 'icons';
         const meta = store.readMeta();
         let ic = { checked: 0, downloaded: [], failed: [], skipped: 0 };
         let idx = [];
-        if (meta.autoFetchIcons !== false) {
-          pushLog(j, { phase: 'icons', msg: '检查/更新角色与光锥图标…' });
-          idx = await icons.refreshIndex(m => pushLog(j, { phase: 'icons', msg: m }));
-          ic = await icons.ensureIcons(store.readStore().records, m => pushLog(j, { phase: 'icons', msg: m }));
-          pushLog(j, { phase: 'icons', msg: '图标检查 ' + ic.checked + ' 项：新增 ' + ic.downloaded.length + '、已存在 ' + ic.skipped + '、失败 ' + ic.failed.length });
-        } else {
-          pushLog(j, { phase: 'icons', msg: '按设置跳过了图标自动更新' });
+        try {
+          if (meta.autoFetchIcons !== false) {
+            pushLog(j, { phase: 'icons', msg: '检查/更新角色与光锥图标…' });
+            idx = await icons.refreshIndex(m => pushLog(j, { phase: 'icons', msg: m }));
+            ic = await icons.ensureIcons(store.readStore().records, m => pushLog(j, { phase: 'icons', msg: m }));
+            pushLog(j, { phase: 'icons', msg: '图标检查 ' + ic.checked + ' 项：新增 ' + ic.downloaded.length + '、已存在 ' + ic.skipped + '、失败 ' + ic.failed.length });
+          } else {
+            pushLog(j, { phase: 'icons', msg: '按设置跳过了图标自动更新' });
+          }
+        } catch (e) {
+          // 局部失败：只记在 iconError 上，**不设 j.error** —— 前端因此仍会刷新
+          j.iconError = e.message;
+          pushLog(j, { phase: 'icons', msg: '图标处理失败（抽卡数据已合并，不受影响）：' + e.message });
         }
-        getAnalysis(true);
-        j.result = { fetch: r.report, endpoints: r.endpoints, merged, icons: { checked: ic.checked, downloaded: ic.downloaded.length, failed: ic.failed, skipped: ic.skipped, index: idx } };
+        j.result.icons = { checked: ic.checked, downloaded: ic.downloaded.length, failed: ic.failed, skipped: ic.skipped, index: idx };
         j.phase = 'done';
         pushLog(j, { phase: 'done', msg: '全部完成，页面已刷新分析结果' });
       } catch (e) {
@@ -285,6 +309,37 @@ const ROUTES = {
     }
   },
 
+  // ── 卡池节奏：每个真实卡池开放实例的前/中/后三段 ──────────────────────────
+  // 与「抽卡分析」页共用同一份去重记录，但口径完全独立：这里的时间单位是**卡池自己**的
+  // 开放区间（见 core/banner-phase.js），不是版本半期。历史真值表随代码发布且只读。
+  // ?pools = normal(默认 11+12) | ch(11) | lc(12) | ld(21+22) | all
+  // ?now=YYYY-MM-DD HH:mm 可覆盖「此刻」（验收脚本用）
+  'GET /api/banner-timing': (req, res) => {
+    const q = url.parse(req.url, true).query;
+    const MAP = { normal: [11, 12], ch: [11], lc: [12], ld: [21, 22], all: [11, 12, 21, 22] };
+    const pools = MAP[String(q.pools || 'normal')] || MAP.normal;
+    try {
+      const recs = store.readStore().records || [];
+      const nowMs = q.now ? bannerPhase.parseServerTime(String(q.now)) : undefined;
+      const r = bannerPhase.build({ records: recs, pools, nowMs: isFinite(nowMs) ? nowMs : undefined });
+      // names 一并带上：页面用 W.I18N.registerNames() 收下它，4.6 的角色/光锥就有了官方英文名
+      sendJSON(res, Object.assign({ ok: true }, r, { calendar: banner.cacheInfo(), names: banner.cacheNames() }));
+    } catch (e) {
+      sendJSON(res, { ok: false, error: String(e && e.message || e) });
+    }
+  },
+
+  // 轻量修订号：给已经打开的页面轮询用（需求 §2：不能只写文件而指望浏览器自己刷新）。
+  // ⚠️ 刻意做得极轻：只读两个 stat 加一份按 mtime 记忆的缓存，不碰 records.json 的内容。
+  'GET /api/revisions': (req, res) => sendJSON(res, {
+    records: statKey('data/records.json'),
+    external: statKey('data/external.json'),
+    meta: statKey('data/meta.json'),
+    calendar: calKey(),
+    calendarAt: banner.cacheInfo().fetchedAtText,
+    calendarStale: banner.cacheInfo().stale,
+  }),
+
   // 剩余卡池期内的择日榜（日家择吉）。?from=&to=YYYY-MM-DD，缺省 from = 今天。
   // 页面只传 to（= 当期卡池结束那天），保证不会越界去推荐下一期。
   'GET /api/zeri/range': (req, res) => {
@@ -365,3 +420,12 @@ process.on('uncaughtException', e => console.error('[未捕获异常] 服务继�
 process.on('unhandledRejection', e => console.error('[未处理 rejection] 服务继续运行：' + (e && e.stack || e)));
 
 listen(PORT_START, 12);
+
+// ── 卡池日历：每次启动都后台联网检查一次（需求 §2「每次运行」的定义）────────────
+// ⚠️ 只做「检查」不做「覆盖」：拉到的新数据先进运行时快照（data/banner-cache.json），
+//    已核实的历史真值表（core/banner-history.json）绝不会被第三方响应改写。
+// ⚠️ 延迟一小会儿再发起，避免跟首屏的资源请求抢带宽；失败只打日志，不影响任何本地功能。
+setTimeout(() => {
+  try { banner.checkInBackground({ records: store.readStore().records }); }
+  catch (e) { console.log('[卡池日历] 启动检查未能发起：' + (e && e.message || e)); }
+}, 800);

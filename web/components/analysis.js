@@ -302,6 +302,7 @@
       </div>
       <div class="pgnav">
         <span v-html="t('这一页只放<b>当期结论</b>；口径与理由在「解释说明」，抓取 / 卡池边界 / 数据补填在「数据管理」→')"></span>
+        <button class="btn" :title="t('每一颗五星出现在它那期卡池的前段 / 中段 / 后段')" @click="goto('bannerphase')">{{ t('◷ 卡池节奏') }}</button>
         <button class="btn" :title="t('9 章说明书：每个数字的来源与口径')" @click="goto('help')">{{ t('ⓘ 解释说明') }}</button>
         <button class="btn" :title="t('五星角色 × 专属光锥 / 五星光锥全览')" @click="goto('roles')">{{ t('✦ 角色管理') }}</button>
         <button class="btn" :title="t('各卡池时间边界 / 数据补填 / 抓取与同步')" @click="goto('data')">{{ t('⇅ 数据管理') }}</button>

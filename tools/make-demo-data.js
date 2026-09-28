@@ -115,6 +115,11 @@ function bannerEv(gt, gid, golds, tail) {
   golds.forEach(g => { fillEv(gt, gid, g.pity - 1); ev(gt, gid, g.item, 5); });
   if (tail) fillEv(gt, gid, tail);
 }
+// 时间跳：事件流里插一个标记，打时间戳那一遍会重设游标。
+// 为什么需要它：活动池的期次必须落在**真实卡池窗口**里（core/banner-history.json），
+// UP 名字也得是该窗口真实 UP 的五星 —— 否则「卡池节奏」页拿到一堆对不上的期次，
+// 演示数据就演示不出这个功能（全进「待核实」）。
+const jumpTo = t => events.push({ jump: t });
 
 // ① 常驻（gt=1，gacha_id 1001）：三金 + 尾巴。顺序 = 时间顺序，不能乱。
 const GQ_GOLDS = [
@@ -136,42 +141,58 @@ const gqTake = n => {
   }
 };
 
-// ② 联动两池（走另一个端点，保留期更长）—— 放在时间轴最前面
+// ② 联动两池（走另一个端点，保留期更长）—— 放在时间轴最后：
+//    它的窗口是「长期开放」（没有公布结束时刻），放在 4.4 联动第二弹的开放日更贴近真实。
 const LD_CH = { id: '1014', name: 'Saber', item_type: '角色' };
 const LD_LC = { id: '23045', name: '没有回报的加冕', item_type: '光锥' };
-bannerEv('21', '5001', [{ item: LD_CH, pity: 44 }], 6);
-bannerEv('22', '6003', [{ item: LD_LC, pity: 8 }], 2);
+const emitCollab = () => {
+  jumpTo('2026-07-25 20:30');
+  // ⚠️ 角色池刻意用 5001：真实账号里这个 ID 跨数月且没有可核实的开放实例，
+  //    历史表把它登记成「已知缺口」—— 演示数据正好把这条待核实路径也演出来。
+  bannerEv('21', '5001', [{ item: LD_CH, pity: 44 }], 6);
+  bannerEv('22', '6003', [{ item: LD_LC, pity: 8 }], 2);
+};
 
 // ③ 八期活动池：角色池与光锥池 gacha_id 同尾（2124↔3124 …）
+// ⚠️ 每一期都锚在一个**真实存在的卡池窗口**上（来自 core/banner-history.json）：
+//    · at  = 时间跳标记，让这一期落在那个窗口的中前段；
+//    · UP 名必须是该窗口真实 UP 的五星（否则归期判定拿不到「五星 UP 认领」这条证据）。
+//    刻意避开「整版池 + 半期池并行」的那几个版本（4.0/4.1/4.4），
+//    这样演示数据里绝大多数抽卡都能判出阶段 —— 想要看「待核实」，看联动池那两行。
 const PAIRS = [
-  { ch: '1307', chName: '黑天鹅', lc: '23022', lcName: '重塑时光之忆' },
-  { ch: '1306', chName: '花火',   lc: '23021', lcName: '游戏尘寰' },
-  { ch: '1304', chName: '砂金',   lc: '23023', lcName: '命运从未公平' },
-  { ch: '1309', chName: '知更鸟', lc: '23026', lcName: '夜色流光溢彩' },
-  { ch: '1310', chName: '流萤',   lc: '23025', lcName: '梦应归于何处' },
-  { ch: '1401', chName: '大黑塔', lc: '23037', lcName: '向着不可追问处', cross: true },
-  { ch: '1313', chName: '星期日', lc: '23034', lcName: '回到大地的飞行' },
-  { ch: '1413', chName: '长夜月', lc: '23049', lcName: '致长夜的星光' },
+  { at: '2025-10-17 02:00', chName: '丹恒•腾荒',  lcName: '纵然山河万程' },       // 3.6 下半
+  { at: '2025-12-02 20:00', chName: '白厄',       lcName: '黎明恰如此燃烧' },     // 3.7 下半
+  { at: '2025-12-21 08:00', chName: '大丽花',     lcName: '勿忘她的火焰' },       // 3.8 第一期
+  { at: '2026-01-10 08:00', chName: '忘归人',     lcName: '长路终有归途' },       // 3.8 第二期
+  { at: '2026-02-02 02:00', chName: '阿格莱雅',   lcName: '将光阴织成黄金' },     // 3.8 第三期
+  { at: '2026-04-28 20:00', chName: '银狼LV.999', lcName: '欢迎来到银河城', cross: true },  // 4.2 上半
+  { at: '2026-05-15 08:00', chName: '绯英',       lcName: '邂逅于下一个花季' },   // 4.2 下半
+  { at: '2026-06-08 20:00', chName: '爻光',       lcName: '当她决定看见' },       // 4.3 上半
 ];
-const CROSS = { gid: '2129', char: '大黑塔', inWin: 18, full: 76 };   // 第 6 期：保底跨接口窗口边界
+// 第 6 期（4.2 上半）的第一颗金：保底跨接口窗口边界。
+// ⚠️ gid 必须与下面 gidCh 的算法一致（2124 + 5×2 = 2134），否则 crossGold 永远匹配不上，
+//    引擎里的「cross 金」标记会静默失效（这条以前就是错的，顺手对齐）。
+const CROSS = { gid: '2134', char: '银狼LV.999', inWin: 18, full: 76 };
 const STD_CH = ['姬子', '瓦尔特', '布洛妮娅', '杰帕德', '克拉拉', '彦卿', '白露', '希儿', '刃', '符玄', '云璃', '银枝', '银狼'];
 const STD_LC = ['银河铁道之夜', '以世界之名', '但战斗还未结束', '制胜的瞬间', '无可取代的东西', '如泥酣眠', '时节不居'];
 
 PAIRS.forEach((p, i) => {
   const gidCh = String(2124 + i * 2), gidLc = String(3124 + i * 2);
+  jumpTo(p.at);                                // 把这一期放进真实卡池窗口
   // 角色池：约一半期次先歪一个常驻角色，再出 UP
   const chGolds = [];
   if (!p.cross && R() < 0.5) chGolds.push({ item: findItem(pick(STD_CH), CH, '角色'), pity: ri(44, 60) });
-  chGolds.push({ item: { id: p.ch, name: p.chName, item_type: '角色' }, pity: p.cross ? CROSS.inWin : ri(45, 62) });
+  chGolds.push({ item: findItem(p.chName, CH, '角色'), pity: p.cross ? CROSS.inWin : ri(45, 62) });
   bannerEv('11', gidCh, chGolds, 0);
   // 光锥池：约三分之一期次先歪一张常驻光锥
   const lcGolds = [];
   if (R() < 0.35) lcGolds.push({ item: findItem(pick(STD_LC), LC, '光锥'), pity: ri(36, 52) });
-  lcGolds.push({ item: { id: p.lc, name: p.lcName, item_type: '光锥' }, pity: ri(40, 56) });
+  lcGolds.push({ item: findItem(p.lcName, LC, '光锥'), pity: ri(40, 56) });
   bannerEv('12', gidLc, lcGolds, i === PAIRS.length - 1 ? 12 : 0);
   gqTake(22);                                  // 常驻分摊到每一期
 });
 gqTake(gqQueue.length);                        // 剩下的常驻收尾
+emitCollab();                                  // 联动两池放最后（长期开放的窗口）
 // ⚠️ 新手池（gt=2）**一条记录都不生成**：真实情况就是「50 抽早抽完、接口返回空」，
 //    而引擎的「逐池合计 = 总抽数」恒等式要求 n2 = 0（新手池总量只从截图补录来）。
 
@@ -185,11 +206,21 @@ const nextGapMin = () => {
   if (++burst >= ri(8, 16)) { burst = 0; return ri(6, 48) * 60; }
   return ri(1, 5);
 };
-const records = events.map((e, i) => {
+const records = [];
+let rid = 0;
+events.forEach(e => {
+  // ⚠️ 这里的游标是「UTC 字段当墙钟用」的：时间戳最后用 getUTC* 打出来当北京时间。
+  //    所以时间跳必须也按这个约定构造 —— 用 Date.parse(...+08:00) 会整体差 8 小时（踩过）。
+  if (e.jump) {
+    const m = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})$/.exec(e.jump);
+    if (!m) throw new Error('jumpTo 的时间格式必须是 YYYY-MM-DD HH:mm：' + e.jump);
+    cursor = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], 0);
+    burst = 0; return;
+  }
   cursor += nextGapMin() * 60000;
   const d = new Date(cursor);
-  return {
-    id: '9' + String(i + 1).padStart(18, '0'),
+  records.push({
+    id: '9' + String(++rid).padStart(18, '0'),
     uid: UID,
     gacha_type: e.gt,
     item_id: e.item.id,
@@ -201,7 +232,7 @@ const records = events.map((e, i) => {
     item_type: e.item.item_type,
     rank_type: String(e.rank),
     gacha_id: e.gid,
-  };
+  });
 });
 
 // ── 导入记录（sources）—— 分三批，与真实的三次导入同构 ──────────────────────
@@ -227,7 +258,7 @@ const sources = [
 // ⚠️ 与接口窗口重叠的五星**不能录**（会算两遍）。大黑塔是唯一例外：它窗口内那条是残缺值，
 //    整条由截图段代表，所以必须列在这里，并在 crossGold 里登记。
 const histRows = [
-  ['ch', '大黑塔', CROSS.full, 0, '截图①·第1行'],
+  ['ch', CROSS.char, CROSS.full, 0, '截图①·第1行'],
   ['ch', '卡芙卡', 75, 0, '截图①·第2行'],
   ['ch', '银狼',   77, 1, '截图①·第3行'],
   ['ch', '景元',   68, 0, '截图①·第4行'],

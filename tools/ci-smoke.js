@@ -63,7 +63,8 @@ function ping(port, p) {
 
   // 端点冒烟
   const endpoints = ['/', '/api/status', '/api/analysis', '/api/meta',
-    '/api/divination', '/api/zeri', '/theme.css', '/assets/logo.png'];
+    '/api/divination', '/api/zeri', '/api/banner-timing', '/api/revisions',
+    '/theme.css', '/assets/logo.png'];
   let failed = 0;
   for (const p of endpoints) {
     const code = await ping(port, p);
