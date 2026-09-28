@@ -43,7 +43,7 @@
     { k: 'vivid', n: '炫彩', tip: '取自 logo 的深空星云配色：电光蓝 → 紫 → 青，配车头暖光' },
     { k: 'light', n: '明亮', tip: '原来的浅色配色' },
     { k: 'dark', n: '暗黑', tip: '中性冷灰暗色，长时间看不刺眼' },
-    { k: 'glass', n: '玻璃', tip: '液态玻璃：深色底 + 真透面板，边缘有折射亮边，指针划过会亮' },
+    { k: 'glass', n: '玻璃', tip: '液态玻璃：亮色底 + 真透面板，边缘有折射亮边，指针划过会亮' },
   ];
   const THEME_KEYS = THEMES.map(t => t.k);
   const readTheme = () => {

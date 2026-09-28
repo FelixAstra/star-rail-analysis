@@ -1,21 +1,30 @@
 #!/usr/bin/env node
 // ─────────────────────────────────────────────────────────────────────────────
-// 崩铁抽卡分析平台 · 验收「液态玻璃」主题
+// 崩铁抽卡分析平台 · 验收「明亮液态玻璃」主题
 //
-// 用无头 Chrome 打开本地实例，断言玻璃的四层真的生效，并为人工复看留下截图。
+// 用无头 Chrome 打开本地实例，断言玻璃的各层真的生效，并为人工复看留下截图。
 // 与 verify-dashboard / verify-divination 不同，这里**必须有一台在跑的服务** ——
 // 它验的是 CSS 与浏览器算出后的最终值，不是纯函数。
 //
 // 用法：
-//   node server/server.js &                 # 先起服务（端口以 data/.port 或日志为准）
+//   node server/server.js &                 # 先起服务（端口以 .port 为准）
 //   node tools/verify-glass.js http://127.0.0.1:8799/ [输出目录]
+//
+// ⚠️ 这一版的主题是**明亮**基底，所以断言与上一版（深色）整体反过来：判底色亮、
+//    判文字深、判 --line 是「看得见的结构线」而不是白。改主题方向时这几条必须一起改，
+//    否则脚本会用旧口径把新配色判成错的。
 //
 // ⚠️ 这套断言守的是几条**容易被无心改坏**的隐性约定：
 //    ① 小元件的两条 backdrop-filter 必须「先纯 CSS、后带 url(#lg-refract)」——
 //       顺序反了，Safari / Firefox 会把整条都丢掉，那些按钮就彻底没有模糊；
 //    ② --sh3 必须是**四向** inset（上亮下暗），退回单向下高光就不再是「一片玻璃的厚度」；
-//    ③ 面板表面走 background-image 而**不是** ::before —— 见 theme.css 第 6 节的解释；
-//    ④ 指针高光只在 glass 主题下挂监听，靠 --mx / --my 落到元素上。
+//    ③ 大面板不许挂 url() 折射（位移开销随面积走）；侧栏挂的是更便宜的
+//       #lg-refract-lg（单次位移、不带色散）；
+//    ④ --line / --line2 是**结构线**（表格行线、图表坐标轴要用），绝不能被改成白色 ——
+//       一改，表格线在同色底上直接消失。玻璃的亮白边走 --sh3 与 6e 的 border-color；
+//    ⑤ #lg-refract 的色散靠「三通道各拆一条 + screen 合回」实现，
+//       换成别的混合模式会把整片压亮（screen 在互不重叠的单通道上才等价于相加）；
+//    ⑥ 指针高光只在 glass 主题下挂监听，切走要摘掉；开了「减弱动态效果」一律不挂。
 // ─────────────────────────────────────────────────────────────────────────────
 const { spawn } = require('child_process');
 const fs = require('fs');
@@ -147,6 +156,9 @@ const ok = (cond, msg, extra) => {
     if (!okc) throw new Error('导航第 ' + i + ' 项点不到');
     await sleep(900);
   };
+  const cssVar = n => raw('getComputedStyle(document.documentElement).getPropertyValue(' + JSON.stringify(n) + ').trim()');
+  const alphaOf = s => Number((String(s).match(/[\d.]+\)$/) || ['1)'])[0].replace(')', ''));
+  const rgbOf = s => (String(s).match(/[\d.]+/g) || []).map(Number);
 
   console.log('· 打开 ' + APP);
   await send('Page.navigate', { url: APP });
@@ -154,49 +166,103 @@ const ok = (cond, msg, extra) => {
   await sleep(800);
 
   // ══ 一、glass 主题下的断言 ══════════════════════════════════════════════════
-  console.log('\n① 液态玻璃各层是否真的生效');
+  console.log('\n① 折射滤镜本体（两条：带色散的小元件版 / 单次位移的侧栏版）');
   await setLang('zh');
   await setTheme('glass');
 
-  // 1) 折射滤镜本体在文档里
-  ok(await raw('!!document.getElementById("lg-refract")'), 'SVG 折射滤镜 #lg-refract 已注入');
-  ok(await raw('!!(document.getElementById("lg-refract")||{}).querySelector'), '滤镜里有子节点');
+  const f1 = await json(`(()=>{const fl=document.getElementById('lg-refract');
+    if(!fl) return JSON.stringify({missing:1});
+    return JSON.stringify({
+      dm: fl.querySelectorAll('feDisplacementMap').length,
+      cm: fl.querySelectorAll('feColorMatrix').length,
+      bl: [...fl.querySelectorAll('feBlend')].map(b=>b.getAttribute('mode')),
+      turb: (fl.querySelector('feTurbulence')||{}).getAttribute ? fl.querySelector('feTurbulence').getAttribute('type') : '',
+      blur: !!fl.querySelector('feGaussianBlur'),
+      sRGB: fl.getAttribute('color-interpolation-filters')
+    })})()`);
+  ok(!f1.missing, 'SVG 折射滤镜 #lg-refract 已注入');
+  ok(f1.dm === 3, '色散折射有三条位移（R / G / B 各弯一次）', 'feDisplacementMap=' + f1.dm);
+  ok(f1.cm === 3, '三个通道各拆一条 feColorMatrix', 'feColorMatrix=' + f1.cm);
+  ok(f1.bl.length === 2 && f1.bl.every(m => m === 'screen'),
+     '用 feBlend screen 合回三通道（换成别的方式会把整片压亮）', f1.bl.join(','));
+  ok(f1.turb === 'fractalNoise' && f1.blur, '位移场是「低频噪声 + 高斯平滑」，不是裸噪声');
+  ok(f1.sRGB === 'sRGB', 'color-interpolation-filters 显式写 sRGB', f1.sRGB);
 
-  // 2) 背景是深色（浅色毛玻璃版的旧值 #e9edf6 会是三通道俱高）
+  const f2 = await json(`(()=>{const fl=document.getElementById('lg-refract-lg');
+    if(!fl) return JSON.stringify({missing:1});
+    return JSON.stringify({dm: fl.querySelectorAll('feDisplacementMap').length})})()`);
+  ok(!f2.missing, '侧栏专用滤镜 #lg-refract-lg 已注入');
+  ok(f2.dm === 1, '侧栏版只做单次位移（三个通道各弯一次放在 100vh 上太贵）', 'feDisplacementMap=' + f2.dm);
+
+  console.log('\n② 明亮基底（这一版的方向就是「亮」，与暗色主题拉开的正是这里）');
   const bg = await raw('getComputedStyle(document.documentElement).backgroundColor');
-  const rgb = (bg.match(/[\d.]+/g) || []).map(Number);
-  ok(rgb[2] > rgb[0] && rgb[0] + rgb[1] + rgb[2] < 150,
-     '页面底色是深色且偏冷（蓝通道 > 红通道）', bg);
+  const bgr = rgbOf(bg);
+  ok(bgr[0] + bgr[1] + bgr[2] > 600, '页面底色是亮的（三通道之和 > 600）', bg);
+  ok(bgr[2] >= bgr[0], '底色偏冷（蓝通道 ≥ 红通道）', bg);
 
-  // 3) 大面板：模糊 + 饱和 + 提亮
-  //    模糊量取一个**区间**而不是定值：液态玻璃的观感靠折射而不是靠糊，
-  //    所以 --blur 被特意压小（大面板 11px、小元件 6px，见 theme.css 第 5 节）。
+  const bgfx = await cssVar('--bgfx');
+  ok((bgfx.match(/radial-gradient/g) || []).length >= 4,
+     '背景有 ≥4 团彩色（它们就是明亮玻璃的「光源」，少了它就没有光可借）',
+     (bgfx.match(/radial-gradient/g) || []).length + ' 团');
+
+  const cardV = await cssVar('--card');
+  const cardA = alphaOf(cardV);
+  ok(cardA > 0.4 && cardA < 0.62, '面板底色是「透白」（alpha .40~.62）—— 面板的明暗要来自透出来的彩色，不是来自灰', cardV);
+
+  // ⚠️ 读 body 的**算出来的**颜色而不是 token 原值：--tx 是 #rrggbb，
+  //    用 /[\d.]+/ 拆会把它整个当成一个数字（101728），断言会假失败。
+  const txr = rgbOf(await raw('getComputedStyle(document.body).color'));
+  ok(txr[0] + txr[1] + txr[2] < 120, '正文字色是深色（亮底上才读得清）', txr.join(','));
+
+  console.log('\n③ 四层材质');
   const bf = await raw('getComputedStyle(document.querySelector(".st")).backdropFilter');
   const bm = bf.match(/blur\(([\d.]+)px\)/);
-  ok(bm && Number(bm[1]) >= 5 && Number(bm[1]) <= 20, '统计卡的模糊量在 5~20px 之间', bf);
-  ok(/saturate/.test(bf), '统计卡带饱和度提升', bf);
-  ok(/brightness/.test(bf), '统计卡带亮度提升', bf);
-  ok(!/url\(/.test(bf), '大面板**不带**真折射（位移开销随面积走，只给小元件）', bf.slice(0, 60));
+  ok(bm && Number(bm[1]) >= 5 && Number(bm[1]) <= 20, '统计卡的模糊量在 5~20px 之间（再高就拖回毛玻璃）', bf);
+  ok(/saturate\(1\.[3-9]/.test(bf), '统计卡提了饱和度', bf);
+  ok(/contrast\(0?\.[89]/.test(bf), '统计卡**降**了对比度（透过玻璃的颜色更浓、更柔）', bf);
+  ok(/brightness\(1\.0[1-9]/.test(bf), '统计卡提了亮度（背景的光穿过来时发亮而不是发灰）', bf);
+  ok(!/url\(/.test(bf), '大面板**不带**真折射（位移开销随面积走，只给小元件与侧栏）', bf.slice(0, 60));
 
-  // 4) 小元件：真折射（url 引用）
+  // 小元件：真折射（url 引用）
   const bfBtn = await raw('(()=>{const b=document.querySelector(".btn");return b?getComputedStyle(b).backdropFilter:""})()');
-  ok(/lg-refract/.test(bfBtn), '按钮挂上了真折射 url(#lg-refract)', bfBtn.slice(0, 70));
+  ok(/lg-refract\b/.test(bfBtn), '按钮挂上了真折射 url(#lg-refract)', bfBtn.slice(0, 70));
 
-  // 5) 表面：sheen + 指针光团（两层背景图）
+  // 侧栏：挂的是更便宜的那条
+  const bfSide = await raw('getComputedStyle(document.querySelector(".side")).backdropFilter');
+  ok(/lg-refract-lg/.test(bfSide), '侧栏挂的是单次位移的 #lg-refract-lg', bfSide.slice(0, 70));
+
+  // ⚠️ 降级路径的核心：两条 backdrop-filter 的**顺序**。
+  //    算出来的样式只能看到「最后生效」的那一条，所以直接取 theme.css 的文本，
+  //    按声明顺序读 —— 这是唯一能看到「写了但被后来者覆盖」的方式。
+  const cssText = await raw("fetch('theme.css').then(r=>r.text())");
+  const ruleBody = (cssText.match(/\[data-theme="glass"\]\s*\.btn[^{]*\{([^}]*)\}/) || [])[1] || '';
+  const h = ruleBody.split(';').map(s => s.trim()).filter(s => /^(-webkit-)?backdrop-filter\s*:/.test(s));
+  ok(h.length >= 2, '小元件上写了 ≥2 条 backdrop-filter（第一条给全浏览器、第二条加折射）', h.length + ' 条');
+  ok(h.length >= 2 && !/url\(/.test(h[0]) && /url\(#lg-refract\)/.test(h[h.length - 1]),
+     '顺序是「先纯 CSS、后带 url()」—— 反了 Safari / Firefox 会把整条都丢掉', h.map(x => (x.indexOf('url(') < 0 ? 'plain' : 'url')).join(' → '));
+
   const bgi = await raw('getComputedStyle(document.querySelector(".st")).backgroundImage');
   ok(/radial-gradient/.test(bgi), '面板有跟随指针的柔光层');
-  ok(/linear-gradient/.test(bgi), '面板有 135° 对角 sheen');
+  ok(/linear-gradient/.test(bgi), '面板有对角 sheen');
 
-  // 6) 折射亮边：--sh3 是多向 inset（退回单向下高光就会只剩 1 个 inset）
-  const sh = await raw('getComputedStyle(document.documentElement).getPropertyValue("--sh3")');
+  const sh = await cssVar('--sh3');
   ok(/inset/.test(sh) && (sh.match(/inset/g) || []).length >= 4, '--sh3 是四向折射亮边', sh.replace(/\s+/g, ' ').slice(0, 80));
 
-  // 7) 描边是克制的半透明白（旧浅色版是 .75）
-  const ln = await raw('getComputedStyle(document.documentElement).getPropertyValue("--line").trim()');
-  const lna = Number((ln.match(/([\d.]+)\)/) || [])[1]);
-  ok(lna > 0.1 && lna < 0.35, '描边是克制的半透明白（alpha .10~.35）', ln);
+  console.log('\n④ 「结构线」与「玻璃亮边」必须分工明确');
+  const ln = await cssVar('--line');
+  const lnr = rgbOf(ln);
+  const lnA = alphaOf(ln);
+  ok(lnA > 0.35 && lnA < 0.65, '--line 是半透明的结构线（alpha .35~.65），不是白', ln);
+  ok(lnr[0] + lnr[1] + lnr[2] < 720, '--line 是冷灰、不是白（表格行线与图表轴线要靠它才看得见）', ln);
 
-  // 8) 指针高光：派发一次 pointermove，看 --mx / --my 有没有落到元素上
+  const l2 = await cssVar('--line2');
+  ok(rgbOf(l2).slice(0, 3).reduce((a, b) => a + b, 0) < 720, '--line2 同样是结构线（表格行线 / .dsh-svg 坐标轴在用）', l2);
+
+  const bt = await raw('getComputedStyle(document.querySelector(".st")).borderTopColor');
+  const btr = rgbOf(bt);
+  ok(btr[0] > 240 && btr[1] > 240 && btr[2] > 240, '玻璃外缘的边框是发亮的白边（不是结构线）', bt);
+
+  console.log('\n⑤ 指针高光');
   const hl = await json(`(async()=>{
     const el=document.querySelector('.st'); if(!el) return JSON.stringify({err:'没有 .st'});
     const b=el.getBoundingClientRect();
@@ -207,25 +273,48 @@ const ok = (cond, msg, extra) => {
   ok(hl.mx && hl.mx.indexOf('%') > 0, '指针高光写入了 --mx', JSON.stringify(hl));
   ok(/^(2[5-9]|3[0-5])(\.\d+)?%$/.test(hl.mx || ''), '--mx 与指针位置吻合（期望 ≈30%）', hl.mx);
 
-  // 9) 非 glass 主题不该挂指针监听、也不该有 sheen 层
-  console.log('\n② 其它主题不受牵连');
-  await setTheme('light');
-  const lgi = await raw('getComputedStyle(document.querySelector(".st")).backgroundImage');
-  ok(!/radial-gradient/.test(lgi), '切到明亮主题后，指针光团层消失', lgi.slice(0, 46));
-  const lmx = await json(`(async()=>{
+  // ⚠️ 减弱动态效果：项目原先没有这条，是这一版补上的
+  await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
+  await sleep(700);
+  const rm = await json(`(async()=>{
     const el=document.querySelector('.st');
     const b=el.getBoundingClientRect();
     el.dispatchEvent(new PointerEvent('pointermove',{bubbles:true,clientX:b.left+b.width*0.3,clientY:b.top+b.height*0.4}));
     await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
-    return JSON.stringify({mx:el.style.getPropertyValue('--mx')});
+    return JSON.stringify({mx:el.style.getPropertyValue('--mx'),
+                           tr:getComputedStyle(el).transitionDuration});
   })()`);
-  ok(!lmx.mx, '明亮主题下指针高光的监听已摘掉', JSON.stringify(lmx));
+  ok(!rm.mx || rm.mx === '', '开了「减弱动态效果」后指针高光不再写入（change 事件即时生效）', JSON.stringify(rm));
+  ok(/^0s/.test(rm.tr || ''), '同时关掉了悬停动效', rm.tr);
+  await send('Emulation.setEmulatedMedia', { media: '', features: [] });
+  await sleep(500);
 
-  console.log('\n③ 页面无 JS 报错');
+  console.log('\n⑥ 其它主题不受牵连（三套底色是回归钉，改了要一起改这里）');
+  const PIN = { vivid: [7, 10, 24], light: [244, 246, 250], dark: [15, 19, 32] };
+  for (const t of ['vivid', 'light', 'dark']) {
+    await setTheme(t);
+    const v = rgbOf(await raw('getComputedStyle(document.documentElement).backgroundColor'));
+    ok(v[0] === PIN[t][0] && v[1] === PIN[t][1] && v[2] === PIN[t][2],
+       t + ' 的底色没有被这轮改动波及', v.join(',') + '（期望 ' + PIN[t].join(',') + '）');
+
+    const gi = await raw('getComputedStyle(document.querySelector(".st")).backgroundImage');
+    ok(!/radial-gradient/.test(gi), t + ' 主题下没有玻璃的指针光团层', gi.slice(0, 46));
+
+    const lmx = await json(`(async()=>{
+      const el=document.querySelector('.st');
+      const b=el.getBoundingClientRect();
+      el.dispatchEvent(new PointerEvent('pointermove',{bubbles:true,clientX:b.left+b.width*0.3,clientY:b.top+b.height*0.4}));
+      await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+      return JSON.stringify({mx:el.style.getPropertyValue('--mx')});
+    })()`);
+    ok(!lmx.mx, t + ' 主题下指针高光的监听已摘掉', JSON.stringify(lmx));
+  }
+
+  console.log('\n⑦ 页面无 JS 报错');
   ok(pageErrs.length === 0, '浏览过程中没有异常', pageErrs.slice(0, 2).join(' | '));
 
   // ══ 二、截图 ═══════════════════════════════════════════════════════════════
-  console.log('\n④ 截图（中文态，人工复看用）');
+  console.log('\n⑧ 截图（中文态，人工复看用）');
   await setTheme('glass');
   await raw('(window.scrollTo(0,0),1)');
   await sleep(600);
@@ -239,30 +328,41 @@ const ok = (cond, msg, extra) => {
   await raw('(window.scrollTo(0,0),1)'); await sleep(700);
   await shot('glass-help.png');
 
-  // 角色卡网格：玻璃卡 + 稀有度环在深底下的观感
+  // 占卜页：整套 --dz-* 令牌（神坛、罗盘、龟壳、铜钱全是 SVG）也要在亮玻璃下成立
+  await clickNav(2);
+  await raw('(window.scrollTo(0,0),1)'); await sleep(1400);
+  await shot('glass-divination.png');
+
+  await clickNav(3);
+  await raw('(window.scrollTo(0,0),1)'); await sleep(900);
+  await shot('glass-data.png');
+
+  // 角色卡网格特写：玻璃卡 + 稀有度环 + 白色亮边在亮底上的观感
   await clickNav(1);
   await sleep(700);
-  try {
-    await shot('glass-grid-clip.png', await clipOf('.grid', 14));
-  } catch (e) { console.log('    · 跳过 .grid 裁剪：' + e.message); }
+  try { await shot('glass-grid-clip.png', await clipOf('.grid', 14)); }
+  catch (e) { console.log('    · 跳过 .grid 裁剪：' + e.message); }
 
-  console.log('\n⑤ 英文态（排版走 [data-lang="en"]，与中文是两套）');
+  // 小元件特写：按钮上的真折射 + 色散最看得出来的地方
+  try { await shot('glass-btn-clip.png', await clipOf('.lg', 14)); }
+  catch (e) { console.log('    · 跳过 .lg 裁剪：' + e.message); }
+
+  console.log('\n⑨ 英文态（排版走 [data-lang="en"]，与中文是两套）');
   await setLang('en');
-  const okEn = await raw('document.documentElement.getAttribute("data-theme") === "glass"');
-  ok(okEn, '切英文后玻璃主题仍在（偏好互不覆盖）');
-  ok(/lg-refract/.test(await raw('(()=>{const b=document.querySelector(".btn");return b?getComputedStyle(b).backdropFilter:""})()')),
+  ok(await raw('document.documentElement.getAttribute("data-theme") === "glass"'),
+     '切英文后玻璃主题仍在（偏好互不覆盖）');
+  ok(/lg-refract\b/.test(await raw('(()=>{const b=document.querySelector(".btn");return b?getComputedStyle(b).backdropFilter:""})()')),
      '英文态下真折射依然生效');
   await raw('(window.scrollTo(0,0),1)'); await sleep(700);
   await shot('glass-analysis-en.png');
 
-  console.log('\n⑥ 另三主题回归（确认没被这轮改动波及）');
+  console.log('\n⑩ 另三主题回归截图');
   await setLang('zh');
   for (const t of ['vivid', 'light', 'dark']) {
     await setTheme(t);
-    const b = await raw('getComputedStyle(document.documentElement).backgroundColor');
     const p = await send('Page.captureScreenshot', { format: 'png' });
     fs.writeFileSync(path.join(OUT, 'regress-' + t + '.png'), Buffer.from(p.data, 'base64'));
-    console.log('  ✓ ' + t.padEnd(6) + ' 底色 ' + b.padEnd(22) + ' 截图 regress-' + t + '.png');
+    console.log('  ✓ ' + t.padEnd(6) + ' 截图 regress-' + t + '.png');
   }
 
   console.log('\n' + (fail === 0 ? '全部通过' : '有失败项') + '：' + pass + ' 通过 / ' + fail + ' 失败');

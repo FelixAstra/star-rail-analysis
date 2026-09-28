@@ -220,105 +220,127 @@
   --dz-coin-sh1:rgba(255,244,210,.5); --dz-coin-sh2:rgba(60,44,10,.35);
 }
 
-/* ── 5. 玻璃：深色液态玻璃（Liquid Glass）────────────────────────────────────
-   与上一版「白玻璃」的区别，是这一版在追 Apple iOS 26 那套观感的三个特征：
+/* ── 5. 玻璃：明亮液态玻璃（Liquid Glass · light）─────────────────────────────
+   上一版走的是深色基底，结果是整页暗下来，观感与 dark 主题拉不开距离 ——
+   深色液态玻璃做得再对，第一眼读到的仍然是「又一套暗色主题」。这一版改成
+   **明亮**基底，把材质本身做出来。
 
-     ① **面板真的透**：底色 alpha 从 .55 压到 .10 上下。玻璃之所以像玻璃，
-        是因为背后那团彩色能透出来；底色一实，模糊采样就白做了，只剩塑料感。
-     ② **边缘要有光**：一圈「上亮下暗」的内描边（见 --sh3）模拟折射聚光，
-        再叠一条 135° 的对角 sheen（见第 6 节 ::before）。
-     ③ **边缘要会弯**：Chromium 上挂 SVG 位移滤镜做真折射（第 6 节），
-        别的浏览器自动落到纯 CSS 那一层 —— 这是能力边界，不是 fallback 掉链子。
+   Apple 那套材质由五层光学叠出来，这里逐层对上：
 
-   ⚠️ 深色底是刻意的，不是审美偏好：玻璃的亮边、色散、折射全靠**从背景取光**，
-      浅色背景能提供的光本来就不够，高光叠上去也出不来对比。
-      所以这一版的背景光团 alpha 给得比一般暗色主题高得多（.42~.56），
-      它们同时是「壁纸」和「光源」。
+     ① 透   —— 面板底色 alpha 给到 .5 一线。玻璃之所以像玻璃，是背后那团彩色
+                能透出来；底色一实，模糊采样就白做了，只剩塑料感。
+     ② 滤光 —— backdrop-filter 不只是模糊：还要**降对比、提饱和**（透过玻璃的
+                颜色更浓、更柔），再提一档亮度，让背景的光穿过来时发亮而不是发灰。
+                少了 contrast / saturate 这一对，模糊出来的只是「灰掉一层」。
+     ③ 亮边 —— 四向 inset 内描边：上缘最亮、两侧次之、**下缘压一层冷影**。
+                四个方向给同一个值会读成「一圈白框」；而四条全都发亮同样读不出厚度 ——
+                亮底上的「下缘亮边」和白底几乎同色，等于没有。
+     ④ 弯   —— Chromium 上用 SVG 位移滤镜做真折射，并在位移里做极轻的色散
+                （R / G / B 三个通道的位移量各不相同，见 index.html 的 #lg-refract）。
+                别的浏览器自动落到纯 CSS 那一层 —— 这是能力边界，不是掉链子。
+     ⑤ 浮   —— 外侧一圈白晕 + 一层冷调投影。亮色玻璃如果没有那圈白晕，在同样亮的
+                背景上会「浮不起来」，看着像贴纸。
 
-   ⚠️ 所有 token 名称与上一版完全一致 —— styles.css 与各组件全在用，
+   ⚠️ 亮色玻璃比暗色难做，难在**没光可借**：暗底上的高光靠对比就能看见，
+      亮底上的白高光和白底几乎同色。所以这一版的「光源」交给背景那几团彩色，
+      并且把面板底色压得比普通浅色主题透得多（--card 的 alpha 从 .9 级降到 .5 级），
+      让面板的明暗来自透出来的彩色，而不是来自灰。
+
+   ⚠️ --line / --line2 在这一版回归「**结构线**」角色：表格行线（.tb td、.dsh-svg
+      的坐标轴）要用它们，必须是看得见的冷灰；玻璃那种发亮的白边不走这两个 token，
+      走 --sh3 的四向内描边与第 6 节的 border-color 覆盖。把 --line 做成白色会让
+      表格线与图表轴线在同色底上直接消失。
+
+   ⚠️ 所有 token 名称与上一版完全一致 —— styles.css 与各组件全都在用，
       改名会静默失效（找不到变量的属性会退回初始值，不报错）。─────────── */
 [data-theme="glass"]{
-  --bg:#101538;
-  /* 流体色团：紫 / 天蓝 / 品红 / 青绿。它们就是玻璃要折射的「光」——
-     所以 alpha 给得比一般暗色主题的装饰性光晕高得多。四角各一团负责「壁纸」，
-     中间那一团负责别让页面中段塌成纯黑。*/
-  --bgfx:radial-gradient(70% 56% at 6% 0%,rgba(126,94,255,.72) 0%,rgba(126,94,255,0) 66%),
-         radial-gradient(62% 52% at 96% 4%,rgba(64,190,255,.66) 0%,rgba(64,190,255,0) 64%),
-         radial-gradient(68% 58% at 88% 98%,rgba(255,110,180,.56) 0%,rgba(255,110,180,0) 66%),
-         radial-gradient(60% 54% at 8% 100%,rgba(70,235,205,.54) 0%,rgba(70,235,205,0) 64%),
-         radial-gradient(78% 58% at 50% 44%,rgba(118,88,255,.26) 0%,rgba(118,88,255,0) 72%),
-         linear-gradient(160deg,#151b46 0%,#0e1330 54%,#141a3c 100%);
-  --card:rgba(255,255,255,.10); --card2:rgba(255,255,255,.07); --sunk:rgba(255,255,255,.055);
-  --line:rgba(255,255,255,.22); --line2:rgba(255,255,255,.12);
-  --dash:rgba(255,255,255,.20);
-  --pl-dash:rgba(160,190,255,.42);
-  --side-bg:rgba(255,255,255,.055); --side-line:rgba(255,255,255,.13);
-  --hover:rgba(255,255,255,.10); --sel:rgba(255,255,255,.13);
-  --sel-bg:rgba(150,120,255,.16); --sel-line:rgba(190,160,255,.42); --sel-strong:rgba(190,160,255,.62);
-  --img-ph:rgba(255,255,255,.07); --th-bg:rgba(255,255,255,.07);
-  --tx:#f0f4ff; --tx2:#bcc7e4; --tx3:#8e99b8; --tx4:#636e8c;
-  --purple:#c291ff; --purple-d:#d7b4ff;
-  --gold:#ffd27a;   --gold-d:#ffe4ab;
-  --cyan:#6ff5f0;   --green:#5cf0ad; --green-d:#8cf7c7;
-  --red:#ff8089;    --red-d:#ffa8ae; --blue:#7cacff;
-  --ok-bg:rgba(92,240,173,.15);   --ok-line:rgba(92,240,173,.34);  --ok-tx:#8cf7c7;
-  --ring-c5:#ffd27a; --ring-c4:#c291ff; --ring-c3:#8fb8ff;
-  --off-bg:rgba(255,128,137,.15); --off-line:rgba(255,128,137,.34);--off-tx:#ffa8ae;
-  --std-bg:rgba(255,255,255,.08); --std-line:rgba(255,255,255,.18);--std-tx:#bcc7e4;
-  --ld-bg:rgba(194,145,255,.17);  --ld-line:rgba(194,145,255,.36); --ld-tx:#dcbcff;
-  --warn-bg:rgba(255,210,122,.15);--warn-line:rgba(255,210,122,.34);--warn-tx:#ffe4ab;
-  --info-bg:rgba(255,255,255,.07);--info-line:rgba(255,255,255,.16);--info-tx:#bcc7e4;
-  --blue-bg:rgba(124,172,255,.16); --blue-tx:#a8c4ff;
-  --gold-soft:rgba(255,210,122,.28); --on-gold:#241a02;
-  --term-er:#ffb0a0; --term-ok:#8cf7c7;
-  --dz-pill:rgba(16,22,44,.62); --dz-pill-line:rgba(255,255,255,.16); --dz-pill-tx:#c8d3ee;
-  --dz-coin-hole:rgba(10,14,32,.60); --dz-coin-b1:#eef4ff; --dz-coin-b2:#c3cee6; --dz-coin-b3:#93a1c0;
-  --code-bg:rgba(111,245,240,.10); --code-tx:#9bf6f2;
-  --term-bg:rgba(6,9,20,.86); --term-tx:#cfe4ff;
-  --on-accent:#12162c;            /* 彩色底（--purple / --gold）上的文字：深底主题要反着给 */
-  --sh1:0 2px 12px rgba(4,8,22,.38);
-  --sh2:0 16px 48px rgba(4,8,22,.50);
-  /* 折射亮边：上缘最亮（受光面），两侧次之，下缘最弱 —— 四个方向不能给同一个值，
-     否则读起来是一圈均匀的白框，而不是「一片玻璃的厚度」。
-     下缘与两侧各偏一点暖 / 冷，是给边缘做极轻的色散：真实玻璃的厚边会把白光
-     散开，四边同色反而更像塑料片。 */
-  --sh3:inset 0 1px 1px rgba(255,255,255,.55),
-        inset 0 -1px 1.5px rgba(255,196,232,.26),
-        inset 1px 0 1.5px rgba(178,214,255,.24),
-        inset -1px 0 1.5px rgba(206,186,255,.24);
-  --sh-hair:0 1px 3px rgba(4,8,22,.42);
-  --sh-soft:rgba(4,8,22,.42);
-  --blur:11px;
+  --bg:#e7edfc;
+  /* 流体色团：紫 / 天蓝 / 品红 / 青绿，四角各一团，中段再补一团防止整页塌白。
+     它们同时是「壁纸」和「光源」—— 明亮玻璃的高光要从这里借光，所以 alpha
+     给得比一般浅色主题的装饰光晕高得多。 */
+  --bgfx:radial-gradient(62% 50% at 6% 0%,rgba(126,92,255,.56) 0%,rgba(126,92,255,0) 66%),
+         radial-gradient(56% 46% at 96% 2%,rgba(30,160,255,.52) 0%,rgba(30,160,255,0) 64%),
+         radial-gradient(62% 52% at 90% 98%,rgba(255,92,170,.44) 0%,rgba(255,92,170,0) 66%),
+         radial-gradient(54% 48% at 6% 100%,rgba(30,218,186,.48) 0%,rgba(30,218,186,0) 64%),
+         /* 中段这两团不是为好看：背景若只亮在四角，页面中段的玻璃就退化成一片白，
+            而**折射与色散在没有颜色的地方是看不出来的**。 */
+         radial-gradient(70% 42% at 44% 28%,rgba(148,124,255,.26) 0%,rgba(148,124,255,0) 72%),
+         radial-gradient(60% 36% at 64% 70%,rgba(88,186,255,.22) 0%,rgba(88,186,255,0) 72%),
+         linear-gradient(165deg,#eef3ff 0%,#dfe7fc 52%,#eaefff 100%);
+  --card:rgba(255,255,255,.46); --card2:rgba(255,255,255,.34); --sunk:rgba(255,255,255,.40);
+  --line:rgba(150,171,218,.52); --line2:rgba(180,196,230,.55);
+  --dash:rgba(96,116,168,.40);
+  --pl-dash:rgba(120,140,200,.44);
+  --side-bg:rgba(255,255,255,.30); --side-line:rgba(158,177,220,.44);
+  --hover:rgba(255,255,255,.62); --sel:rgba(255,255,255,.58);
+  --sel-bg:rgba(255,255,255,.52); --sel-line:rgba(255,255,255,.88); --sel-strong:rgba(138,104,246,.46);
+  --img-ph:rgba(255,255,255,.46); --th-bg:rgba(255,255,255,.40);
+  --tx:#101728; --tx2:#3d4b6b; --tx3:#67738f; --tx4:#96a1b6;
+  --purple:#6746c6; --purple-d:#553bb0;
+  --gold:#9e6b16;   --gold-d:#835812;
+  --cyan:#0a7486;   --green:#0f7d49; --green-d:#0c663c;
+  --red:#bc3436;    --red-d:#a42a2c; --blue:#2c65a8;
+  --ok-bg:rgba(24,170,112,.20);   --ok-line:rgba(24,170,112,.34);  --ok-tx:#0c663c;
+  --ring-c5:#cf922f; --ring-c4:#8b58bd; --ring-c3:#4a7cc4;
+  --off-bg:rgba(200,64,66,.18);   --off-line:rgba(200,64,66,.32); --off-tx:#a42a2c;
+  --std-bg:rgba(255,255,255,.56); --std-line:rgba(255,255,255,.9);--std-tx:#4e5972;
+  --ld-bg:rgba(126,96,232,.20);   --ld-line:rgba(126,96,232,.34); --ld-tx:#46359e;
+  --warn-bg:rgba(212,152,38,.20); --warn-line:rgba(212,152,38,.34);--warn-tx:#755006;
+  --info-bg:rgba(255,255,255,.54);--info-line:rgba(255,255,255,.92);--info-tx:#4e5972;
+  --blue-bg:rgba(58,124,204,.18); --blue-tx:#2c65a8;
+  --gold-soft:rgba(214,166,76,.32); --on-gold:#3d2c07;
+  --term-er:#ff9b8a; --term-ok:#7ee0a8;
+  --dz-pill:rgba(255,255,255,.80); --dz-pill-line:rgba(255,255,255,.94); --dz-pill-tx:#57648a;
+  --dz-coin-hole:rgba(255,255,255,.60); --dz-coin-b1:#f4f8ff; --dz-coin-b2:#d8e2f4; --dz-coin-b3:#b3c0da;
+  --code-bg:rgba(255,255,255,.68); --code-tx:#18203a;
+  --term-bg:rgba(14,20,38,.90); --term-tx:#cfe4ff;
+  --on-accent:#fff;               /* 彩色底（--purple / --gold）上的文字：亮底主题给白 */
+  /* 投影走冷调、不用纯黑 —— 纯黑压在亮玻璃下方会显脏，冷灰反而更像环境光 */
+  --sh1:0 1px 2px rgba(58,86,152,.10), 0 7px 22px rgba(58,86,152,.13), 0 0 22px rgba(255,255,255,.50);
+  --sh2:0 6px 14px rgba(58,86,152,.15), 0 22px 52px rgba(58,86,152,.20), 0 0 32px rgba(255,255,255,.60);
+  /* 折射亮边：上缘最亮（受光面），两侧偏冷 / 暖做极轻的色散，**下缘压一层冷影**。
+     ⚠️ 下缘必须是影而不是亮：亮底上「下缘的亮边」和白底几乎同色，等于没画，
+        玻璃就不成其为一片有厚度的东西。上亮 + 下暗这一对才把边缘读成一条边。
+     最后一条不带偏移的内发光是菲涅尔 —— 玻璃越靠近边缘反射越强，四面向内柔散。 */
+  --sh3:inset 0 1px 1px rgba(255,255,255,.95),
+        inset 0 -2px 3px rgba(72,102,168,.15),
+        inset 2px 0 3px rgba(190,220,255,.50),
+        inset -2px 0 3px rgba(224,206,255,.50),
+        inset 0 0 7px rgba(255,255,255,.55);
+  --sh-hair:0 1px 3px rgba(58,86,152,.18);
+  --sh-soft:rgba(58,86,152,.17);
+  --blur:12px;      /* 液态玻璃的中心是清晰的，靠折射而不是靠糊；再高就拖回毛玻璃了 */
   --blur-sm:6px;
-  --logo-glow:drop-shadow(0 0 14px rgba(150,110,255,.60)) drop-shadow(0 0 5px rgba(90,230,255,.45));
-  --brand-glow:drop-shadow(0 0 10px rgba(150,110,255,.42));
-  --dz-altar:linear-gradient(160deg,rgba(38,28,80,.55) 0%,rgba(16,20,48,.50) 52%,rgba(24,30,68,.52) 100%);
-  --dz-altar-line:rgba(255,255,255,.16);
-  --dz-altar-in:inset 0 1px 0 rgba(255,255,255,.24);
-  --dz-plate-1:rgba(255,255,255,.10);  --dz-plate-2:rgba(255,255,255,.07);
-  --dz-plate-l1:#7a86b8; --dz-plate-l2:#6d79aa; --dz-plate-l3:#616d9c; --dz-plate-div:#7a86b880;
-  --dz-gua-tx:#a9b6de;   --dz-gua-idx:#7c88b2;
-  --dz-tai-1:#eef2ff;    --dz-tai-2:#171d3c;  --dz-tai-ring:#6a76a8;
-  --dz-shell-1:#eef3ff;  --dz-shell-2:#c3cee8; --dz-shell-3:#95a2c4; --dz-shell-4:#7581a6;
-  --dz-shell-ring:#8b97be; --dz-shell-seam:#a3aecf; --dz-shell-ento:rgba(238,243,255,.70);
-  --dz-shell-edge:#8b97be; --dz-shell-hi:#ffffff;
-  --dz-zuo:#6a7699;      --dz-zhao:#ffa84a;
-  --dz-coin-1:#eef4ff;   --dz-coin-2:#c8d3ea; --dz-coin-3:#9aa8c8;
-  --dz-coin-tx:#1c2440;  --dz-coin-ring:rgba(255,255,255,.50);
-  --dz-coin-sh1:rgba(255,255,255,.85); --dz-coin-sh2:rgba(20,30,70,.30);
+  --logo-glow:drop-shadow(0 4px 12px rgba(96,116,220,.40));
+  --brand-glow:none;
+  --dz-altar:linear-gradient(160deg,rgba(255,255,255,.66) 0%,rgba(238,245,255,.48) 52%,rgba(230,238,255,.56) 100%);
+  --dz-altar-line:rgba(255,255,255,.90);
+  --dz-altar-in:inset 0 1px 0 rgba(255,255,255,.98);
+  --dz-plate-1:rgba(255,255,255,.62);  --dz-plate-2:rgba(255,255,255,.46);
+  --dz-plate-l1:#a4b2d6; --dz-plate-l2:#b1bede; --dz-plate-l3:#becbe6; --dz-plate-div:#b1bede;
+  --dz-gua-tx:#64719a;   --dz-gua-idx:#8d9abd;
+  --dz-tai-1:#ffffff;    --dz-tai-2:#3a4463;  --dz-tai-ring:#a4b2d6;
+  --dz-shell-1:#ffffff;  --dz-shell-2:#e6edfa; --dz-shell-3:#c8d4ec; --dz-shell-4:#adbcd8;
+  --dz-shell-ring:#8a99ba; --dz-shell-seam:#a3b0ce; --dz-shell-ento:rgba(255,255,255,.84);
+  --dz-shell-edge:#8a99ba; --dz-shell-hi:#ffffff;
+  --dz-zuo:#64719a;      --dz-zhao:#cf7c33;
+  --dz-coin-1:#f4f8ff;   --dz-coin-2:#d8e2f4; --dz-coin-3:#b3c0da;
+  --dz-coin-tx:#39476a;  --dz-coin-ring:rgba(150,166,204,.52);
+  --dz-coin-sh1:rgba(255,255,255,.90); --dz-coin-sh2:rgba(70,92,146,.24);
 }
 
-/* ── 6. 液态玻璃的三层 ──────────────────────────────────────────────────────
-   CSS 没有「所有面板」这种选择器，只能逐个列。这里按**面积**分两档 ——
-   位移滤镜的开销随面积走，大面板挂上它，长表格一滚就掉帧。
+/* ── 6. 明亮液态玻璃的四层 ──────────────────────────────────────────────────
+   CSS 没有「所有面板」这种选择器，只能逐个列。这里按**面积**分档 ——
+   位移滤镜的开销随面积走，长表格挂上它，一滚就掉帧。
 
    ⚠️ 6c 用的是 background-image 而**不是**伪元素，这是刻意的：
-      ::before{position:absolute} 要求宿主有 position:relative，而这一版的宿主里
-      有 .ck（稀有度角标，styles.css:43）这类本来就靠更外层当包含块的绝对定位子元素，
-      随手补 relative 会把它们集体挪位。只叠一层背景图，零布局风险。 */
+      ::before{position:absolute} 要求宿主有 position:relative，而这张表上的宿主
+      种类很多（.grid / .pgrid / .hp-* / table / .btn…），逐个去补 relative 是在动
+      布局，风险远大于收益。只叠一层背景图，零布局风险。 */
 
-/* 6a. 模糊底：所有「面」都吃。brightness 提一档，让背景的光穿过玻璃时更亮 */
-[data-theme="glass"] .side,
+/* 6a. 面：模糊 + 滤光。⚠️ contrast(.94) 与 saturate(1.62) 这一对不是随手写的 ——
+       Apple 对这套材质的描述是「透过玻璃的颜色更浓、更柔」，也就是提饱和、降对比。
+       少了这一步，模糊出来的只是「灰掉一层」，不是玻璃。 */
 [data-theme="glass"] .st,
 [data-theme="glass"] .note,
 [data-theme="glass"] .lg,
@@ -337,26 +359,37 @@
 [data-theme="glass"] .pool-fold,
 [data-theme="glass"] .imp-drop,
 [data-theme="glass"] .dsh-card{
-  -webkit-backdrop-filter:blur(var(--blur)) saturate(1.75) brightness(1.06);
-  backdrop-filter:blur(var(--blur)) saturate(1.75) brightness(1.06);
+  -webkit-backdrop-filter:blur(var(--blur)) saturate(1.62) contrast(.94) brightness(1.04);
+  backdrop-filter:blur(var(--blur)) saturate(1.62) contrast(.94) brightness(1.04);
 }
 
-/* 6b. 真折射：只给小元件。两条 backdrop-filter **必须按顺序写**：
-       第一条是纯 CSS，各浏览器都认；第二条带 url(#lg-refract)，
-       Safari / Firefox 解析不了 url() 会**整条丢弃**，于是自动停在第一条上。
-       降级是这么来的，不需要 @supports 去猜。 */
+/* 6b. 真折射：给「小元件」。
+      两条 backdrop-filter **必须按顺序写**：第一条是纯 CSS，各浏览器都认；
+      第二条带 url(#lg-refract)，Safari / Firefox 解析不了 url() 会**整条丢弃**，
+      于是自动停在第一条上。降级是这么来的，不需要 @supports 去猜。 */
 [data-theme="glass"] .btn,
 [data-theme="glass"] .thm-b,
 [data-theme="glass"] .dz-sel,
 [data-theme="glass"] .dz-bn,
 [data-theme="glass"] .btbar{
-  -webkit-backdrop-filter:blur(var(--blur-sm)) saturate(1.8);
-  backdrop-filter:blur(var(--blur-sm)) saturate(1.8);
-  backdrop-filter:url(#lg-refract) blur(var(--blur-sm)) saturate(1.8);
+  -webkit-backdrop-filter:blur(var(--blur-sm)) saturate(1.7);
+  backdrop-filter:blur(var(--blur-sm)) saturate(1.7);
+  backdrop-filter:url(#lg-refract) blur(var(--blur-sm)) saturate(1.7) contrast(.94) brightness(1.06);
 }
 
-/* 6c. 表面：135° 对角 sheen（左上受光）+ 跟随指针的柔光团。
-       --mx / --my 由 app.js 在玻璃主题下写入；没有指针事件时停在正中央。 */
+/* 6b-2. 侧栏：唯一挂折射的大面。它是 sticky 的，背后是 background-attachment:fixed
+        的固定背景，滤镜结果可以被合成器缓存，不会因为滚动每帧重算 —— 这也是它
+        敢挂折射的理由。用的是**单次位移**的那条滤镜：三个通道各弯一次
+        （#lg-refract 的做法）放在 100vh 的面积上太贵。 */
+[data-theme="glass"] .side{
+  -webkit-backdrop-filter:blur(var(--blur)) saturate(1.6);
+  backdrop-filter:blur(var(--blur)) saturate(1.6);
+  backdrop-filter:url(#lg-refract-lg) blur(var(--blur)) saturate(1.6) contrast(.95) brightness(1.04);
+}
+
+/* 6c. 表面：左上受光的对角 sheen + 跟随指针的柔光团。
+       --mx / --my 由 app.js 在玻璃主题下写入；没有指针事件时停在正中央。
+       亮底上的 sheen 要比暗底更集中在角上 —— 整片泛白会把通透感盖掉。 */
 [data-theme="glass"] .side,
 [data-theme="glass"] .st,
 [data-theme="glass"] .note,
@@ -369,11 +402,12 @@
 [data-theme="glass"] .dsh-card,
 [data-theme="glass"] .pool-row{
   background-image:
-    radial-gradient(300px 220px at var(--mx,50%) var(--my,50%),rgba(255,255,255,.13) 0%,rgba(255,255,255,0) 74%),
-    linear-gradient(135deg,rgba(255,255,255,.18) 0%,rgba(255,255,255,.05) 34%,rgba(255,255,255,0) 58%);
+    radial-gradient(320px 240px at var(--mx,50%) var(--my,50%),rgba(255,255,255,.42) 0%,rgba(255,255,255,0) 72%),
+    linear-gradient(150deg,rgba(255,255,255,.52) 0%,rgba(255,255,255,.11) 26%,rgba(255,255,255,0) 52%);
 }
 
-/* 6d. 厚度：外侧柔影 + 内侧四个方向的折射亮边（--sh3 在 glass 主题里是多向 inset）*/
+/* 6d. 厚度：外侧冷调柔影 + 一圈白晕（亮色玻璃靠这圈白晕才「浮」得起来），
+       再叠内侧四向折射亮边（--sh3 在 glass 主题里是多向 inset）。 */
 [data-theme="glass"] .st,
 [data-theme="glass"] .note,
 [data-theme="glass"] .lg,
@@ -383,12 +417,29 @@
 [data-theme="glass"] .hp-kv,
 [data-theme="glass"] .hp-eq{box-shadow:var(--sh1),var(--sh3)}
 
-/* 6e. 悬停：玻璃被抬起一点点。只给统计卡 —— .grid / .pgrid 里躺着 .ck 绝对定位角标，
-       而 transform 会新建层叠上下文让角标跟错基准，所以那两个容器不能碰。 */
+/* 6e. 玻璃外缘：把结构线的冷灰换成发亮的白边。
+       表格与侧栏边界**不动** —— 它们要的是「看得见的分隔」，白线在白底上等于没有。 */
+[data-theme="glass"] .st,
+[data-theme="glass"] .note,
+[data-theme="glass"] .lg,
+[data-theme="glass"] .grid,
+[data-theme="glass"] .pgrid,
+[data-theme="glass"] .hp-fig,
+[data-theme="glass"] .hp-kv,
+[data-theme="glass"] .hp-eq,
+[data-theme="glass"] .hp-toc,
+[data-theme="glass"] .dsh-card,
+[data-theme="glass"] .pool-row,
+[data-theme="glass"] .pool-fold,
+[data-theme="glass"] .imp-drop,
+[data-theme="glass"] .dz-card{border-color:rgba(255,255,255,.66)}
+
+/* 6f. 悬停：玻璃被抬起一点点。只给统计卡 —— .grid / .pgrid 里躺着 .ck 角标，
+       transform 会新建层叠上下文，没必要去动它们。 */
 [data-theme="glass"] .st{transition:transform .22s cubic-bezier(.2,.9,.3,1.2),box-shadow .22s ease}
 [data-theme="glass"] .st:hover{transform:translateY(-2px);box-shadow:var(--sh2),var(--sh3)}
 
-/* 6f. 前庭不适的设置下把新增动效关掉（指针高光在 JS 侧同判）*/
+/* 6g. 前庭不适的设置下把新增动效关掉（指针高光在 JS 侧同判）*/
 @media (prefers-reduced-motion: reduce){
   [data-theme="glass"] .st{transition:none}
   [data-theme="glass"] .st:hover{transform:none}
