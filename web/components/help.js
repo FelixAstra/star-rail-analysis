@@ -38,7 +38,7 @@
     { n: '7', id: 'hp-7', zh: '这几个数字怎么算', en: 'How these numbers are computed',
       szh: '总抽数 · 出金率 · 每 UP · 小保底不歪', sen: 'total warps · 5★ rate · warps per UP · 50/50 win rate' },
     { n: '8', id: 'hp-8', zh: '吉凶是怎么算的', en: 'How the auspiciousness rating works',
-      szh: '万年历日家 / 时家黄黑道', sen: 'almanac day and hour indicators' },
+      szh: '万年历日家 / 时家黄黑道 · 分析页的两张图表', sen: 'almanac day and hour indicators · the two chart panels' },
     { n: '9', id: 'hp-9', zh: '日常维护手册', en: 'Routine maintenance',
       szh: '抽了新卡、重新截了工坊页之后做什么', sen: 'what to do after pulling new warps or re-screenshotting the workshop' },
   ];
@@ -631,6 +631,16 @@
           </div>
         </div>
         <div class="hp-note" v-html="L('这是个<b>趣味指标</b>：它只是把抽卡时间对齐到万年历上，<b>与出金概率没有任何因果关系</b>，别拿它做决策依据 :)', 'This is a <b>for-fun indicator</b>: it merely lines your warp times up against the almanac and has <b>no causal relationship whatsoever with 5★ probabilities</b>. Do not base decisions on it :)')"></div>
+
+        <h3 class="hp-h3">{{ L('8.1 分析页的两张图表', '8.1 The two chart panels on the analysis page') }}</h3>
+        <p class="hp-p" v-html="L('第一张图把每次出金按<b>出金那一刻</b>的吉凶归档，看三档各出了几颗五星、平均多少抽出一颗，以及出金的<b>时段分布</b>（按十二时辰，23 点与 0 点同属子时）。第二张图用保底机制去<b>预测</b>还要多少抽出金，并在数据更新后把历次预测与实际画在一起对照。', 'The first panel files every 5★ by the auspiciousness rating of <b>the moment it dropped</b>: how many 5★ each group produced, the average warps per 5★, and the <b>two-hour period</b> the golds fell in (23:00 and 00:00 count as the same period). The second panel uses the pity mechanic to <b>forecast</b> how many more warps a 5★ will take, and plots each past forecast against what actually happened as the records grow.')"></p>
+        <ul class="hp-ul">
+          <li v-html="L('<b>只统计角色活动跃迁与光锥活动跃迁</b>，并且<b>只吃带时间戳的接口记录</b>：截图补录那批（7.5）没有精确时间，进不了这个统计。保底跨接口窗口的那几颗也剔除 —— 它们的「出金用了多少抽」不完整，留着会把均值拉低。页脚会把「纳入了多少颗、排除了哪几颗」逐项写出来。', '<b>Only character and light cone event warps are counted</b>, and <b>only records that carry a timestamp</b>: the screenshot backfill (7.5) has no precise time, so it cannot enter this statistic. A few 5★ whose pity started outside the API retention window are dropped too — their “warps spent to get this 5★” is incomplete, and keeping them would drag the average down. The footnote lists exactly how many were included and which were excluded.')"></li>
+          <li v-html="L('<b>三档的均值差要按置信区间读。</b>每组颗数不同，卡片上给的是 95% 置信区间；<b>区间互相重叠时页面会标注「差异不显著」</b> —— 那种情况下的均值差完全可以由随机波动解释，不是「这个时辰更欧」。同理，时段分布反映的是<b>你自己的作息</b>，不是游戏机制。', '<b>Read the group averages with their confidence intervals.</b> The groups hold different numbers of 5★, so each card carries a 95% interval; <b>when the intervals overlap the page says so</b> — the difference is then fully explainable by random variation, not by a lucky hour. The period distribution likewise reflects <b>when you play</b>, not the game’s mechanics.')"></li>
+          <li v-html="L('<b>预测用的是机制 + 你这份记录的经验分布。</b>角色池 74 抽起概率递增、90 抽硬保底；光锥池 66 抽起递增、80 抽硬保底。模型在机制分布上叠加本账号已有的出金分布（做平滑后按样本量加权），所以记录越多，你的手气话语权越大；样本稀疏的尾部由机制兜底。每张卡片还给「10 / 20 / 40 抽之内出金」的概率，以及<b>已垫抽数</b>不同时的期望值。', '<b>The forecast combines the mechanic with the distribution in your own records.</b> Character pool: the rate rises from 74 warps and is guaranteed by 90. Light cone pool: from 66, guaranteed by 80. The model smooths your observed 5★ distribution and weights it by sample size on top of the mechanic, so the more records you have, the more your own luck counts; sparse tails fall back to the mechanic. Each card also gives the chance of a 5★ <b>within 10 / 20 / 40 warps</b>, and the expectation at your current <b>warps into pity</b>.')"></li>
+          <li v-html="L('<b>回测不偷看未来。</b>图上每个点的预测只用它<b>之前</b>的出金重估分布，所以时间上越靠右的点越接近现在的模型。判定标准是<b>覆盖率</b> —— 实际值落在预测区间内的比例，理想值约 80%；单点误差（MAE）只作参考，因为出金本身是随机的。每次打开页面都会用最新记录重算，图表随记录增长自动更新。', '<b>The backtest does not peek at the future.</b> Each point on the chart is forecast using only the 5★ that came <b>before</b> it, so points further right reflect a model closer to the current one. The measure that matters is <b>coverage</b> — the share of actuals that land inside the forecast interval, ideally around 80%; point error (MAE) is only a reference, since 5★ pulls are random. Everything is recomputed on page load, so the charts follow your records as they grow.')"></li>
+        </ul>
+        <div class="hp-note" v-html="L('这张图<b>不会告诉你「什么时候抽更容易出金」</b> —— 出金是独立同分布的随机过程，机制里没有「时辰」这个变量。它做的是把机制讲清楚、把历史如实画出来。', 'This panel <b>cannot tell you when to pull for better odds</b> — 5★ pulls are an independent, identically distributed random process, and the mechanic has no “hour of day” variable in it. What it does is state the mechanic plainly and plot the history honestly.')"></div>
       </section>
 
       <!-- ⑨ ─────────────────────────────────────────────────────────────── -->

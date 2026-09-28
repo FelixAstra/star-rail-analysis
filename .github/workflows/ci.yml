@@ -26,6 +26,9 @@ jobs:
       - name: Divination engine assertions (offline, data-independent)
         run: node tools/verify-divination.js
 
+      - name: Dashboard statistics & forecast assertions (offline, data-independent)
+        run: node tools/verify-dashboard.js
+
       - name: i18n coverage (zh + en)
         run: node tools/check-i18n.js
 

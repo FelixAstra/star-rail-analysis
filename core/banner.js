@@ -25,6 +25,10 @@ const fs = require('fs');
 const path = require('path');
 
 const URL_CAL = 'https://api.ennead.cc/mihoyo/starrail/calendar?lang=zh-cn';
+// ⚠️ 同一个日历源带多语言：?lang=en 的 banners[] 与 zh-cn 结构完全一致、id 一一对应。
+//    所以「中文名 → 官方英文名」可以直接从源里取，**不用自己译、也不依赖 StarRailRes 索引** ——
+//    索引对新版本有滞后（4.6 上半的「真珠 / 献给明日的色彩」上游还没收录，日历源已经有了）。
+const URL_CAL_EN = 'https://api.ennead.cc/mihoyo/starrail/calendar?lang=en';
 const CACHE_FILE = path.join(__dirname, '..', 'data', 'banner-cache.json');
 const CACHE_TTL = 6 * 3600 * 1000;   // 6 小时
 const TZ = 'Asia/Hong_Kong';
@@ -67,12 +71,18 @@ function parse(s) {
 const nowStr = () => fmt(Math.floor(Date.now() / 1000));
 
 // ── 网络 ─────────────────────────────────────────────────────────────────────
-function getJSON(url, tries) {
+/**
+ * @param {string} url
+ * @param {number} [tries=3]      失败重试次数
+ * @param {number} [timeoutMs]    单次请求超时（缺省 15s）
+ */
+function getJSON(url, tries, timeoutMs) {
   tries = tries || 3;
+  const tmo = timeoutMs || 15000;
   return new Promise(function (resolve, reject) {
     const attempt = n => {
       const req = https.get(url, {
-        timeout: 15000,
+        timeout: tmo,
         headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)', 'Accept': 'application/json' },
       }, res => {
         let buf = '';
@@ -111,6 +121,32 @@ function writeCache(obj) {
 }
 
 // ── 解析日历 ─────────────────────────────────────────────────────────────────
+/**
+ * 中文名 → 官方英文名对照表。
+ * ⚠️ 只用源里给的英文名，**绝不自己译**（`characters` / `light_cones` 数组在两个语言版本里
+ *    同序同长，按 banner 的 id 对齐后逐个 zip 即可）。en 版拉不到就返回 {} ——
+ *    页面上名字回退成中文，比编一个可能是错的英文名强。
+ */
+function pairNames(zhRaw, enRaw) {
+  const out = {};
+  const enById = {};
+  ((enRaw && enRaw.banners) || []).forEach(b => { enById[String(b.id)] = b; });
+  ((zhRaw && zhRaw.banners) || []).forEach(zb => {
+    const eb = enById[String(zb.id)];
+    if (!eb) return;
+    const zip = (a, b) => {
+      const A = a || [], B = b || [];
+      for (let i = 0; i < A.length && i < B.length; i++) {
+        const zn = A[i] && A[i].name, en = B[i] && B[i].name;
+        if (zn && en && zn !== en) out[zn] = en;
+      }
+    };
+    zip(zb.characters, eb.characters);
+    zip(zb.light_cones, eb.light_cones);
+  });
+  return out;
+}
+
 /** ennead 的 banners[] → 归一化后的期次列表（按开始时间升序） */
 function normalize(raw) {
   const list = (raw && raw.banners) || [];
@@ -247,16 +283,27 @@ async function calendar(o) {
   const nowSec = Math.floor((o.now ? parse(o.now).getTime() : Date.now()) / 1000);
   const cache = readCache();
   let list = null, source = '', fetchedAt = '', stale = false, warn = '';
+  let names = (cache && cache.names) || {};   // 中文名 → 官方英文名（缓存里也存一份，离线可用）
 
   if (!o.force && cache && cache.fetchedAt && Date.now() - cache.fetchedAt < CACHE_TTL && Array.isArray(cache.banners)) {
     list = cache.banners; source = 'cache'; fetchedAt = fmt(Math.floor(cache.fetchedAt / 1000));
   } else {
     try {
-      const raw = await getJSON(URL_CAL);
+      // 两个语言版本并发拉：en 版只用来取官方英文名，它失败不影响卡池本身。
+      // ⚠️ 给 en 版单独压短「1 次尝试 / 3.5 秒」—— 它是加成不是必需，
+      //    不能因为源对 en 慢就把 /api/banner 首帧拖住（卡池信息本身由 zh 版负责）。
+      const [raw, rawEn] = await Promise.all([
+        getJSON(URL_CAL),
+        getJSON(URL_CAL_EN, 1, 3500).catch(() => null),
+      ]);
       list = normalize(raw);
       if (!list.length) throw new Error('日历里没有卡池数据');
+      // ⚠️ en 版没拉到（超时/挂了）时 pairNames 是空表 —— 此时**沿用缓存里已有的对照**，
+      //    别把上一次拿到的好数据覆盖成空（否则一次抖动就让英文名全退回中文）。
+      const fresh = pairNames(raw, rawEn);
+      if (Object.keys(fresh).length) names = fresh;
       source = 'ennead'; fetchedAt = nowStr();
-      writeCache({ fetchedAt: Date.now(), banners: list });
+      writeCache({ fetchedAt: Date.now(), banners: list, names: names });
     } catch (e) {
       warn = '拉取卡池日历失败（' + e.message + '），已降级';
       if (cache && Array.isArray(cache.banners) && cache.banners.length) {
@@ -294,6 +341,10 @@ async function calendar(o) {
     ok: !!cur,
     source, fetchedAt, stale, warn,
     list, terms, current, currentTerm, next, remain,
+    // 中文名 → 官方英文名（取自同一日历源的 ?lang=en）。
+    // 前端 W.I18N.registerNames() 收下它，新版本角色/光锥就有了官方英文名 ——
+    // 不必等 StarRailRes 收录，也不会去自己译。
+    names,
     // ⚠️ 这里**不要**写「已用本地记录校准」——校不校准由调用方（组件）按
     //    bnCalibrated 判断后自己追一句。写在这里会在同一张卡上出现两遍。
     note: '卡池起止来自第三方日历（ennead.cc），非官方接口。开池固定在中午 12:00，' +
@@ -361,4 +412,4 @@ function mapGachaIds(terms, records) {
   return out;
 }
 
-module.exports = { calendar, mapGachaIds, normalize, mergeTerms, calibrateByRecords, fromBuiltin, fmt, parse, addDays, CACHE_FILE, URL_CAL, BUILTIN };
+module.exports = { calendar, mapGachaIds, normalize, mergeTerms, calibrateByRecords, fromBuiltin, fmt, parse, addDays, pairNames, CACHE_FILE, URL_CAL, URL_CAL_EN, BUILTIN };

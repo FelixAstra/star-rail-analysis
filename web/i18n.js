@@ -89,6 +89,27 @@
   })();
   function n(name) { void nVer.value; return (lang.value === 'en' && N2E[name]) ? N2E[name] : name; }
 
+  /**
+   * 补进「中文名 → 官方英文名」对照。
+   * ⚠️ 来源是**卡池日历源的 ?lang=en**（见 core/banner.js 的 pairNames），不是自己译的 ——
+   *    索引（StarRailRes）对新版本有滞后：4.6 上半的「真珠 / 献给明日的色彩」上游还没收录，
+   *    但日历源已经给了官方英文名（Pearl / Colors for Tomorrow）。
+   * 注册后触发一次全页重渲染，已经在页面上的中文名会跟着变成英文。
+   * @returns {number} 新增 / 更新的条数
+   */
+  function registerNames(map) {
+    if (!map || typeof map !== 'object') return 0;
+    let hit = 0;
+    Object.keys(map).forEach(k => {
+      const v = map[k];
+      // 只接受「中 → 英」且与键不同的条目；同名的（如「青雀」→「青雀」）不用记
+      if (!v || typeof v !== 'string' || v === k) return;
+      if (N2E[k] !== v) { N2E[k] = v; hit++; }
+    });
+    if (hit) nVer.value++;
+    return hit;
+  }
+
   // ── 卦名英译对照（64 卦 · Legge / Wilhelm 通行译名，仅作对照附注） ────────
   // 原文（卦名 / 卦辞 / 爻辞）不翻译；这里只给一个通行的英文名帮助检索文献。
   const GUA_EN = {
@@ -115,5 +136,5 @@
   };
   function guaEn(name) { return (lang.value === 'en' && GUA_EN[name]) ? GUA_EN[name] : ''; }
 
-  W.I18N = { lang, setLang, t, L, n, guaEn, GUA_EN, LANGS };
+  W.I18N = { lang, setLang, t, L, n, registerNames, guaEn, GUA_EN, LANGS };
 })();

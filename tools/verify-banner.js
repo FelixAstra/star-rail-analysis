@@ -39,6 +39,32 @@ const readRecords = () => {
   try { cal = await B.calendar({ records }); }
   catch (e) { cal = { ok: false, error: e.message }; }
 
+  // ── ⑥ 中文名 → 官方英文名对照（先跑离线断言，喂合成 payload）─────────────────
+  // ⚠️ 这一段刻意不依赖网络：两份结构相同、只有语言不同的合成数据即可验证规则本身
+  //    ——「按 banner 的 id 对齐，再按数组顺序 zip 角色 / 光锥」。
+  //    目的：新版本角色在 StarRailRes 索引里还没收录时，官方英文名仍有来源（日历源的 ?lang=en）。
+  {
+    const zh = { banners: [
+      { id: 1, characters: [{ name: '甲', rarity: 5 }, { name: '乙', rarity: 4 }], light_cones: [] },
+      { id: 2, characters: [], light_cones: [{ name: '丙', rarity: 5 }] },
+    ] };
+    const en = { banners: [
+      { id: 1, characters: [{ name: 'Alpha', rarity: 5 }, { name: 'Beta', rarity: 4 }], light_cones: [] },
+      { id: 2, characters: [], light_cones: [{ name: 'Gamma', rarity: 5 }] },
+    ] };
+    const m = B.pairNames(zh, en);
+    rec(m['甲'] === 'Alpha' && m['乙'] === 'Beta' && m['丙'] === 'Gamma',
+      '⑥ 名字对照：按 banner 的 id 对齐 + 数组同序 zip', JSON.stringify(m));
+    rec(Object.keys(B.pairNames(zh, null)).length === 0,
+      '⑥ en 版整个缺失 → 空表（宁回退中文，不编英文名）');
+    rec(Object.keys(B.pairNames(zh, { banners: [{ id: 999, characters: [{ name: '甲' }] }] })).length === 0,
+      '⑥ id 对不上就不产出映射（不做「按位置兜底」这种不可靠的配对）');
+    const rn = (cal && cal.names) ? Object.keys(cal.names) : [];
+    note('⑥ 日历源给出的真实对照条数（信息项）',
+      rn.length ? rn.length + ' 条 · 例：' + rn.slice(0, 4).map(k => k + '→' + cal.names[k]).join('、')
+                : '（本次没取到日历，或缓存里还没写入 names）');
+  }
+
   // ── ① 日历结构 ───────────────────────────────────────────────────────────
   if (!cal || !cal.ok || !cal.currentTerm) {
     skip('① 日历结构', '取不到当期期次（' + ((cal && (cal.error || cal.warn)) || '离线') + '）');
@@ -116,7 +142,22 @@ const readRecords = () => {
       return (df >= day(t.start) && df <= day(t.end)) || (df >= lo(day(t.start)) && df <= hi(day(t.end)));
     });
 
-    rec(matched.length > 0, '④ 至少有一个活动池 gid 落到期次上', matched.length + ' / ' + ev.length);
+    // ⚠️ 日历源是**滚动窗口**：只返回当前及后续期次，老期次会被挤掉（见 banner.js 的注释）。
+    //    所以「有没有 gid 落到期次上」既取决于映射对不对，也取决于
+    //    「本地记录的时间跨度 × 当前窗口」有没有重叠 —— 两者不重叠时映射天然为 0，那是数据状态，不是错。
+    //    （实测踩过：记录最晚 2026-09-21，而窗口只覆盖 09-28 之后，于是 0/51。
+    //      真正的错误是「区间重叠却一个都没配上」，由下面的 unmatchedIn 那条守着。）
+    const recDays = ev.map(x => day(x.first)).sort();
+    const recLo = recDays[0], recHi = recDays[recDays.length - 1];
+    const winDays = terms.map(t => day(t.start)).concat(terms.map(t => day(t.end))).sort();
+    const winLo = winDays[0], winHi = winDays[winDays.length - 1];
+    const winOverlap = recHi >= winLo && recLo <= winHi;
+    if (!winOverlap) {
+      skip('④ 至少有一个活动池 gid 落到期次上',
+        `记录 ${recLo}~${recHi} 与日历窗口 ${winLo}~${winHi} 不重叠（滚动窗口已挤掉老期次）→ 映射天然为 0`);
+    } else {
+      rec(matched.length > 0, '④ 至少有一个活动池 gid 落到期次上', matched.length + ' / ' + ev.length);
+    }
     rec(matched.every(inTerm), '④ 已匹配的 gid，首抽日必落在该期区间内（±1 天）',
       matched.map(x => `${x.gid}@${day(x.first)}→${x.label}`).join(' '));
     rec(matched.every(x => (x.upChars || []).length > 0), '④ 已匹配的 gid 都带 UP 角色名单',
@@ -140,6 +181,7 @@ const readRecords = () => {
     const uniqTerms = [];
     matched.forEach(x => { if (!uniqTerms.some(t => t.label === x.label)) uniqTerms.push(x); });
     if (!Object.keys(CH).length) skip('⑤ UP 名单交叉验证', '本地角色索引为空');
+    else if (!uniqTerms.length) skip('⑤ UP 名单交叉验证', '本次没有任何 gid 匹配到期次（窗口与记录不重叠），没有名单可交叉验证');
     else {
       const badC = [], badL = [];
       uniqTerms.forEach(x => {

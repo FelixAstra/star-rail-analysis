@@ -139,7 +139,7 @@ Five pages, organised in the sidebar. Both language names are given, because the
 
 | Page | What it does |
 |---|---|
-| **Warp Analysis** (抽卡分析) | Current-period conclusions: a seven-card overview, and banner detection for character / light cone warps with per-pull gold details |
+| **Warp Analysis** (抽卡分析) | Current-period conclusions: a seven-card overview, banner detection for character / light cone warps with per-pull gold details, plus **two chart panels** — where 5★ pulls fall across the almanac's day-types and the twelve two-hour periods, and a pity-model forecast re-checked against the records as they grow |
 | **Characters** (角色管理) | 5★ characters × their signature light cones (eidolon, superimposition, and where each number came from), plus a 5★ light cone list grouped by path |
 | **Divination** (八卦占卜) | Six-line casting (coin or yarrow-stalk), today's auspicious hours, recommended dates inside the current banner, and a **recommended pull count** |
 | **Fetch & Data** (抓取与数据管理) | Paste a warp link, inspect data coverage, see each banner's time bounds, edit the manual baseline, attach screenshot-derived stats, run self-checks |
@@ -154,6 +154,7 @@ The interface ships in **Simplified Chinese and English**; the switcher sits at 
 - **Short labels** live in a keyed dictionary (`web/i18n.dict.js`) whose keys *are* the Chinese source strings. The Chinese build never consults the table, so it cannot miss an entry, and an untranslated string can only ever fall back to Chinese rather than to an empty line.
 - **Long-form prose** — the handbook's nine chapters — is written as paired Chinese/English strings side by side in the component, because a file of two hundred paragraph-long keys is harder to keep honest than two adjacent lines.
 - **The divination page keeps its classical Chinese.** Hexagram names, judgements, line texts and almanac terms are shown as they are, since the English equivalents are scholarly translations rather than the thing itself. Each hexagram carries the standard Legge/Wilhelm name as a finding aid.
+- **A brand-new banner can be named before the name index knows it.** The index is a community snapshot and can lag a release. The banner calendar is therefore queried in both its Chinese and English editions, and the English edition supplies the names for characters and light cones the index has not caught up with yet. Where neither source has an English name, the Chinese name is shown rather than a guess.
 
 The two layers are checked by machine, not by eye. `tools/check-i18n.js` is static: it walks the source for dictionary keys and paired strings and fails on a missing entry, a mismatched `{placeholder}`, or Chinese left inside a translation. `tools/verify-i18n.js` is runtime: it drives a headless Chrome through all five pages in both languages and fails if Chinese turns up outside the regions that are meant to keep it.
 
@@ -265,6 +266,7 @@ Screenshots are re-shot with two headless-Chrome scripts that drive the app over
 - **The manual baseline is cut by exact timestamp, not by day.** A day-only value is treated as `23:59:59` of that day, otherwise pulls from the same day get counted twice.
 - **Two "did the 50/50 hold" algorithms always differ slightly** (counting by golds vs. walking chronologically). The app uses the by-golds method, matching the community reference tool. This is intentional, not a bug.
 - **Heavy fetching can trip rate limiting.** The symptom is connection failure to the API host while other miHoYo domains still work — it is not a dead `authkey` and not your network. Back off for ~45 seconds and retry.
+- **The banner calendar is a rolling window.** It returns the banners that are live now plus the announced ones, so finished periods drop off it. The banner names and rate-up lists that come from it are therefore only available for the periods it still reaches; for older periods the app falls back to inferring the rate-up from what was actually pulled. The handbook's banner cross-check has the same reach.
 
 ## Credits & disclaimer
 

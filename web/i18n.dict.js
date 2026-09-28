@@ -1037,6 +1037,8 @@
       ', currently a favourable hour',
     '抽':
       ' warps',
+    '颗':
+      ' pulls',
     '读状态失败：':
       'Failed to read the status: ',
     '读取图标库 / 外部统计失败：':

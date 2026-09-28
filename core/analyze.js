@@ -18,6 +18,7 @@ const P = require('./pools.js');
 const P_ACC = require('./account.js');
 const P_EXT = require('./external.js');
 const { almanac } = require('./huangli.js');
+const dashboard = require('./dashboard.js');
 
 const ROOT = path.join(__dirname, '..');
 
@@ -721,6 +722,11 @@ function analyze(opts) {
     },
 
     almanac: { dist: almDist, goldTotal: golds.length },
+    // 图表看板（需求：吉凶 × 出金 + 出金抽数预测）。
+    // ⚠️ 只用 golds —— 那份列表全部来自接口记录、都带精确时间戳；
+    //    account.json 的补录数据（无时间戳）根本不在这里。
+    //    cross 金与常驻/联动池的排除在 dashboard.js 内部完成。
+    dashboards: dashboard.build(golds, { padded: pity }),
     // 导入留档（需求 1.2：把「第一次导入建仓 → 之后校验并累计」这件事在界面上说清楚）
     imports: (loaded.sources || []).map(s => ({
       at: s.at || s.importedAt || '',

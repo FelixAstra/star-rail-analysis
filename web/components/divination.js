@@ -253,6 +253,9 @@
           .then(r => {
             if (!r || !r.ok) { this.bannerErr = (r && r.error) || W.I18N.t('卡池日历未就绪'); return; }
             this.banner = r;
+            // 日历源同时给了「中文名 → 官方英文名」（?lang=en），收进名字表 ——
+            // 新版本的角色/光锥在 StarRailRes 索引里还没收录，靠这份才有官方英文名。
+            W.I18N.registerNames(r.names);
             this.loadRange();
           })
           .catch(e => { this.bannerErr = String((e && e.message) || e); });

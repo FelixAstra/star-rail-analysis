@@ -201,6 +201,8 @@
   app.component('w-empty', W.Empty);
   app.component('w-legend', W.Legend);
   app.component('w-overview', W.Overview);
+  app.component('w-alm-dash', W.AlmDash);
+  app.component('w-predict-dash', W.PredictDash);
   app.component('w-pool-bounds', W.PoolBounds);
   app.component('w-pool-detail', W.PoolDetail);
   app.component('w-banner-tabs', W.BannerTabs);

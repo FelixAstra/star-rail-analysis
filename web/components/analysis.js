@@ -307,6 +307,8 @@
         <button class="btn" :title="t('各卡池时间边界 / 数据补填 / 抓取与同步')" @click="goto('data')">{{ t('⇅ 数据管理') }}</button>
       </div>
       <w-overview :a="a"></w-overview>
+      <w-alm-dash :a="a"></w-alm-dash>
+      <w-predict-dash :a="a"></w-predict-dash>
       <w-banner-tabs :a="a"></w-banner-tabs>
       <div class="foot">
         <span v-html="t('头像与名称资源：本地 <code>assets/</code>（源自公开的角色资源库，抓取时自动补齐缺失图标）<br>本平台在你自己电脑上运行，数据只存在本机 <code>data/</code>，不联网上传任何内容')"></span>

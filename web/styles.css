@@ -889,3 +889,83 @@ h2 small{font-weight:400;color:var(--tx3);font-size:12.5px;margin-left:8px;lette
 @media (max-width:1320px){[data-lang="en"] .sts{grid-template-columns:repeat(2,1fr)}}
 @media (max-width:640px){[data-lang="en"] .sts{grid-template-columns:1fr}}
 @media (max-width:900px){[data-lang="en"] .hp-toc{grid-template-columns:1fr}}
+
+/* ═══ 图表看板（抽卡分析页 · 吉凶分布 + 出金抽数预测）═══════════════════════════
+   两个看板共用一套外壳。色值全部走 token，四套主题自动跟随：
+     吉 = --gold · 平 = --cyan · 凶 = --red · 模型 = --purple · 实际 = --cyan
+   红在这里是「不利」，与股市红涨绿跌无关 —— 这是黄历吉凶，不是行情。 */
+.dsh-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:12px;margin-bottom:16px}
+.dsh-cards-p{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.dsh-card{position:relative;background:var(--card);border:1px solid var(--line);border-radius:12px;
+  padding:12px 14px 13px 17px;overflow:hidden}
+.dsh-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--tx3)}
+.dsh-card.b-ji::before{background:var(--gold)}
+.dsh-card.b-ping::before{background:var(--cyan)}
+.dsh-card.b-xiong::before{background:var(--red)}
+.dsh-card.b-all::before,.dsh-card.b-pred::before{background:var(--purple)}
+.dsh-card .k{font-size:12.5px;color:var(--tx2);line-height:1.4}
+.dsh-card .v{font-size:26px;font-weight:500;line-height:1.3;letter-spacing:-.5px}
+.dsh-card .v i{font-style:normal;font-size:12px;font-weight:400;color:var(--tx3);margin-left:3px}
+.dsh-card .s{font-size:12px;color:var(--tx3)}
+.dsh-card .m{font-size:12.5px;color:var(--tx2);margin-top:7px}
+.dsh-card .m b{color:var(--tx)}
+.dsh-card .small{font-size:11.5px;color:var(--tx3);margin-top:7px;line-height:1.5}
+.dsh-card .probs{display:flex;flex-wrap:wrap;gap:3px 12px;margin-top:7px;font-size:12px;color:var(--tx2)}
+.dsh-card .probs span{white-space:nowrap}
+
+/* 置信区间条：统一以角色池硬保底 90 抽为刻度，三档才能横向比 */
+.dsh-card .ci{margin-top:8px}
+.dsh-card .cibar{position:relative;display:block;height:13px;background:var(--sunk);border-radius:7px}
+.dsh-card .cibar i{position:absolute;top:3px;bottom:3px;left:0;width:0;border-radius:4px;
+  background:var(--tx3);opacity:.5}
+.dsh-card.b-ji .cibar i{background:var(--gold)}
+.dsh-card.b-ping .cibar i{background:var(--cyan)}
+.dsh-card.b-xiong .cibar i{background:var(--red)}
+.dsh-card .cibar b{position:absolute;top:1px;width:2px;height:11px;margin-left:-1px;background:var(--tx)}
+
+.dsh-charts{display:grid;grid-template-columns:1fr;gap:14px}
+.dsh-chart{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px 15px 8px}
+.dsh-chart .ct{font-size:13px;color:var(--tx);margin-bottom:8px;line-height:1.5}
+.dsh-chart .ct-sub{font-size:11.5px;color:var(--tx3);margin-left:8px}
+.dsh-mini{font-size:12px;color:var(--tx3);padding:18px 0;text-align:center}
+
+.dsh-svg{display:block;width:100%;height:auto}
+.dsh-svg .ax line{stroke:var(--line2);stroke-width:1}
+.dsh-svg .ax line.soft{stroke:var(--pl-dash);stroke-width:1.2;stroke-dasharray:4 4}
+.dsh-svg .lb text{fill:var(--tx3);font-size:11px}
+.dsh-svg .lb.sm text{font-size:10.5px}
+.dsh-svg .lb text.zhi{fill:var(--tx2);font-size:12px}
+.dsh-svg .lb text.cnt{fill:var(--tx2);font-size:10.5px}
+.dsh-svg .lb text.ax-t{fill:var(--tx3);font-size:11px}
+.dsh-svg rect.bb-ji{fill:var(--gold);opacity:.85}
+.dsh-svg rect.bb-ping{fill:var(--cyan);opacity:.85}
+.dsh-svg rect.bb-xiong{fill:var(--red);opacity:.85}
+.dsh-svg rect.bb-sc{fill:var(--purple);opacity:.72}
+.dsh-svg path{fill:none;stroke-linejoin:round;stroke-linecap:round}
+.dsh-svg path.ln-model{stroke:var(--purple);stroke-width:1.6;stroke-dasharray:6 4}
+.dsh-svg path.ln-emp{stroke:var(--cyan);stroke-width:1.8}
+.dsh-svg path.ln-cum{stroke:var(--gold);stroke-width:1.8}
+.dsh-svg path.ln-pred{stroke:var(--purple);stroke-width:1.6;stroke-dasharray:6 4}
+.dsh-svg path.band{fill:var(--purple);fill-opacity:.13;stroke:none}
+.dsh-svg circle.dot{fill:var(--tx2);opacity:.65}
+
+.dsh-legend{display:flex;flex-wrap:wrap;gap:6px 20px;margin:11px 3px 0;font-size:12px;color:var(--tx3)}
+.dsh-legend i{display:inline-block;width:15px;height:2.5px;border-radius:2px;vertical-align:middle;
+  margin-right:6px;background:var(--tx3)}
+.dsh-legend i.sw-model{background:var(--purple)}
+.dsh-legend i.sw-emp{background:var(--cyan)}
+.dsh-legend i.sw-cum{background:var(--gold)}
+.dsh-legend i.sw-band{height:10px;border-radius:3px;background:var(--purple);opacity:.28}
+
+.dsh-note{background:var(--card);border:1px solid var(--line);border-radius:12px;
+  padding:13px 17px;margin-top:14px;font-size:12.5px;color:var(--tx2);line-height:1.9}
+.dsh-note>div+div{margin-top:5px}
+.dsh-note.warn{border-color:var(--warn-line);background:var(--warn-bg)}
+.dsh-note b{color:var(--tx)}
+.dsh-note .dim{color:var(--tx3);font-size:12px}
+
+/* 并排的两列图（生存曲线 / 回测）：窄屏堆叠，宽屏才并排 */
+@media (min-width:1040px){.dsh-charts.two{grid-template-columns:1fr 1fr}}
+/* 英文态的卡片标题长得多（"Inauspicious hours" vs「凶时」），下限放宽避免折成三行 */
+[data-lang="en"] .dsh-cards{grid-template-columns:repeat(auto-fit,minmax(186px,1fr))}
+[data-lang="en"] .dsh-cards-p{grid-template-columns:repeat(auto-fit,minmax(268px,1fr))}
