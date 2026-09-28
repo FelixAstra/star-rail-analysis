@@ -2,8 +2,8 @@
 // 崩铁抽卡分析平台 · 图表看板（吉凶分布 + 出金抽数预测）
 //
 // 两个看板，全部只用**链接抓取到的、带精确时间戳的五星记录**：
-//   A. 吉时 / 平时 / 凶时 的出金分布 —— 颗数、占比、平均出金抽数（含 95% 置信区间）、
-//      出金时辰分布、三组并排直方图。
+//   A. 吉时 / 平时 / 凶时 的出金分布 —— 颗数、占比、中位与平均出金抽数、角色池占比、
+//      出金时辰分布（含每个时辰覆盖的钟点）、三块上下排列的直方图（10 抽一档）。
 //   B. 出金抽数预测与回测 —— 经验分布 + 机制约束的模型、当前各池的条件期望、
 //      生存曲线、walk-forward 回测（预测 vs 实际）。
 //
@@ -17,10 +17,15 @@
 //      共用一套分布等于把两种机制混成一个，均值必然失真。
 //
 // ⚠️ 统计诚实（页面上必须写明，别只写在注释里）：
-//   出金是独立同分布随机过程，游戏机制里**没有黄历这个变量**。三组的均值差异若出现，
-//   来自样本波动与玩家自己的抽卡习惯（例如更愿意在吉时抽），不是因果。样本量小时
-//   均值差异可以完全被随机性解释 —— 所以这里给置信区间，并在三组区间互相重叠时
-//   显式标记「差异不显著」。
+//   抽卡结果具有随机性，游戏机制里**没有黄历这个变量**。三组的差异若出现，来自样本
+//   波动与玩家自己的抽卡习惯（例如更愿意在吉时抽），不是因果。
+//
+// ⚠️⚠️ 删掉的两样东西，别再加回来：
+//   ① 「三组均值的 95% 置信区间两两重叠 → 差异不显著」。这个推断不成立：区间重叠
+//      与不重叠都不等价于显著性检验，而且这里只比了部分配对。要正经比较组间差异，
+//      得另设计（分池、控制保底进度、按样本量做检验），不在本页范围内。
+//   ② 「出金是独立同分布的随机过程」。保底机制会让**单抽**出金概率随已垫抽数变化，
+//      逐抽概率并不相同。准确的说法只有一句：「抽卡结果具有随机性」。
 // ─────────────────────────────────────────────────────────────────────────────
 const { almanac } = require('./huangli.js');
 const { POOL, HARD, POOL_EN } = require('./pools.js');
@@ -42,9 +47,17 @@ const SCOPE = ['11', '12'];
 // 十二时辰（23:00–00:59 归子时，与 core/huangli.js 的 hourIdx 同口径）
 const SHICHEN = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
 
-// 直方图分箱宽度（抽）
-const BIN = 5;
-const N_BINS = 18;   // 1-5 … 86-90
+// 十二时辰各自覆盖的钟点（**从 shichenOf 的定义反推，不是另抄一份表**）：
+//   子 23:00–00:59 · 丑 01:00–02:59 · 寅 03:00–04:59 … 亥 21:00–22:59
+// 界面在时辰标签上给出这个范围 —— 只写一个「未」字，没人知道是哪两个小时。
+const SHICHEN_HOURS = SHICHEN.map((_, i) => (i === 0 ? [23, 0] : [2 * i - 1, 2 * i]));
+const pad2 = h => String(h).padStart(2, '0');
+
+// 直方图分箱宽度（抽）。
+// ⚠️ 从 5 抽一档改成 10 抽一档、18 档改成 9 档：三组样本分别只有几十颗，5 抽一档
+//    会把样本切得太碎，柱子高度几乎全由稀疏噪声决定，看着热闹其实读不出形状。
+const BIN = 10;
+const N_BINS = 9;    // 1-10 … 81-90
 
 // ── 小工具 ───────────────────────────────────────────────────────────────────
 const mean = a => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : null);
@@ -61,27 +74,6 @@ function shichenOf(time) {
   const h = Number(String(time).slice(11, 13));
   if (!Number.isFinite(h)) return null;
   return h === 23 ? 0 : Math.floor((h + 1) / 2);
-}
-
-/**
- * bootstrap 置信区间（百分位法，2000 次重抽）。
- * ⚠️ 用固定种子的线性同余发生器，**同一份数据每次跑出同一个区间** ——
- *    否则每次刷新页面数字都在跳，用户会以为数据在变。
- */
-function bootstrapCI(vals, level = 0.95, iters = 2000) {
-  const n = vals.length;
-  if (n < 3) return [null, null];
-  let seed = 20260928;
-  const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
-  const means = new Array(iters);
-  for (let i = 0; i < iters; i++) {
-    let s = 0;
-    for (let j = 0; j < n; j++) s += vals[Math.floor(rnd() * n)];
-    means[i] = s / n;
-  }
-  means.sort((a, b) => a - b);
-  const lo = (1 - level) / 2, hi = 1 - lo;
-  return [means[Math.floor(iters * lo)], means[Math.floor(iters * hi)]];
 }
 
 /**
@@ -190,65 +182,78 @@ function buildAlmanac(usable) {
     const list = groups[b.key];
     const pities = list.map(x => x.pity);
     const n = list.length;
-    const [lo, hi] = bootstrapCI(pities);
     return {
       key: b.key, label: b.label, en: b.en,
       n,
       pct: total ? n / total * 100 : 0,
       avg: mean(pities),
+      // 中位数给到卡片主位：出金抽数的分布右偏（保底把尾部拉长），均值会被少数
+      // 高抽数拖走，中位数更接近「一般是多少抽出金」。
       median: median(pities),
-      ci: [lo, hi],
-      // 该组里角色池占的比列 —— 用于判断「组的均值差异是否其实是池构成差异」
+      // 该组里角色池占的比例 —— 两池硬保底不同（90 / 80），合并后的均值会被池构成
+      // 带偏，所以卡片上要把它摆出来，而不是只给一个「平均出金抽数」让人自行脑补。
       chShare: n ? list.filter(x => x.gt === '11').length / n * 100 : null,
       small: n < 10,          // 样本不足：均值不可靠，界面要标注
     };
   });
 
-  // 三组两两置信区间是否都重叠 —— 都重叠 = 差异可以被随机性解释
-  let allOverlap = true, pairs = 0;
-  for (let i = 0; i < buckets.length; i++) {
-    for (let j = i + 1; j < buckets.length; j++) {
-      const A = buckets[i], B = buckets[j];
-      if (A.ci[0] == null || B.ci[0] == null) continue;
-      pairs++;
-      if (!(A.ci[0] <= B.ci[1] && B.ci[0] <= A.ci[1])) allOverlap = false;
-    }
-  }
+  // ── 直方图：10 抽一档，共 9 档 ────────────────────────────────────────────
+  const bins = Array.from({ length: N_BINS }, (_, i) => ({
+    i,
+    lo: i * BIN + 1,
+    hi: i === N_BINS - 1 ? 90 : i * BIN + BIN,   // 最后一档收到 90（角色池硬保底）
+  }));
 
-  // 三组并排直方图：**组内归一化**（每组各自和为 100%）。
-  // 用组内比例而不是绝对计数，形状才可比 —— 组大小本来就不同。
+  // 每组：**组内占比**（该区间颗数 ÷ 该组五星总数）。用组内比例而不是绝对计数，
+  // 形状才可比 —— 三组的颗数本来就不同。
+  // ⚠️ 零样本组给 **null 而不是 0**：一排 0% 柱子会被读成「这个区间确实没人出过金」，
+  //    而真实情况是「这一组根本没有样本」。界面据 null 显示空状态。
   const series = BUCKETS.map(b => {
     const list = groups[b.key];
-    const bins = new Array(N_BINS).fill(0);
-    list.forEach(x => { bins[Math.min(N_BINS - 1, Math.floor((x.pity - 1) / BIN))]++; });
-    const sz = list.length || 1;
-    return { key: b.key, label: b.label, en: b.en, n: list.length, pct: bins.map(v => v / sz * 100) };
+    const counts = new Array(N_BINS).fill(0);
+    list.forEach(x => { counts[Math.min(N_BINS - 1, Math.floor((x.pity - 1) / BIN))]++; });
+    const n = list.length;
+    return {
+      key: b.key, label: b.label, en: b.en,
+      n, counts,
+      pct: n ? counts.map(c => c / n * 100) : new Array(N_BINS).fill(null),
+    };
   });
 
-  // 出金时辰分布（全样本，不分组）
+  // 三组共用同一个纵轴上限，柱高才可横向比；零样本组不参与计算。
+  // 向上取整到 5 的倍数（并给一个 10% 的地板），避免刻度出现 18.7% 这种数。
+  const observed = series.filter(s => s.n).map(s => Math.max.apply(null, s.pct));
+  const maxPct = observed.length ? Math.max.apply(null, observed) : 0;
+  const yMax = Math.min(100, Math.max(10, Math.ceil(maxPct / 5) * 5));
+
+  // ── 出金时辰分布（全样本，不分组）────────────────────────────────────────
   const sc = new Array(12).fill(0);
   tagged.forEach(x => { if (x.sc != null) sc[x.sc]++; });
-  const shichen = SHICHEN.map((zhi, i) => ({
-    zhi, n: sc[i], pct: total ? sc[i] / total * 100 : 0,
-  }));
+  const shichen = SHICHEN.map((zhi, i) => {
+    const h0 = SHICHEN_HOURS[i][0], h1 = SHICHEN_HOURS[i][1];
+    return {
+      zhi, i,
+      n: sc[i],
+      pct: total ? sc[i] / total * 100 : 0,
+      from: h0, to: h1,                                  // 覆盖的钟点（含两端小时）
+      range: pad2(h0) + ':00\u2013' + pad2(h1) + ':59',   // 精确区间，给浮层用
+      short: pad2(h0) + '\u2013' + pad2((h1 + 1) % 24),   // 轴上的紧凑写法（含头不含尾）
+    };
+  });
 
   return {
     total,
     bucketTotal: total,
     buckets,
-    allOverlap: allOverlap && pairs > 0,
-    hist: {
-      bin: BIN, nBins: N_BINS,
-      labels: Array.from({ length: N_BINS }, (_, i) =>
-        i === N_BINS - 1 ? `${i * BIN + 1}-90` : `${i * BIN + 1}-${i * BIN + BIN}`),
-      series,
-    },
+    hist: { bin: BIN, nBins: N_BINS, bins, yMax, series },
     shichen,
-    overall: (() => {
-      const ps = tagged.map(x => x.pity);
-      const [lo, hi] = bootstrapCI(ps);
-      return { avg: mean(ps), median: median(ps), ci: [lo, hi] };
-    })(),
+    // 全体对照：n / 均值 / 中位数，**不给置信区间**（理由见文件头）
+    overall: {
+      n: total,
+      avg: mean(tagged.map(x => x.pity)),
+      median: median(tagged.map(x => x.pity)),
+      chShare: total ? tagged.filter(x => x.gt === '11').length / total * 100 : null,
+    },
   };
 }
 
@@ -373,5 +378,5 @@ function build(golds, opts = {}) {
 }
 
 module.exports = { build, buildAlmanac, buildPredict, backtest, estimateDist, mechDist,
-                   condExpect, condProb, quantile, bootstrapCI, shichenOf,
-                   SHICHEN, MECH, SCOPE, N_BINS, BIN };
+                   condExpect, condProb, quantile, shichenOf,
+                   SHICHEN, SHICHEN_HOURS, MECH, SCOPE, N_BINS, BIN };

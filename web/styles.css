@@ -913,30 +913,92 @@ h2 small{font-weight:400;color:var(--tx3);font-size:12.5px;margin-left:8px;lette
 .dsh-card .probs{display:flex;flex-wrap:wrap;gap:3px 12px;margin-top:7px;font-size:12px;color:var(--tx2)}
 .dsh-card .probs span{white-space:nowrap}
 
-/* 置信区间条：统一以角色池硬保底 90 抽为刻度，三档才能横向比 */
-.dsh-card .ci{margin-top:8px}
-.dsh-card .cibar{position:relative;display:block;height:13px;background:var(--sunk);border-radius:7px}
-.dsh-card .cibar i{position:absolute;top:3px;bottom:3px;left:0;width:0;border-radius:4px;
-  background:var(--tx3);opacity:.5}
-.dsh-card.b-ji .cibar i{background:var(--gold)}
-.dsh-card.b-ping .cibar i{background:var(--cyan)}
-.dsh-card.b-xiong .cibar i{background:var(--red)}
-.dsh-card .cibar b{position:absolute;top:1px;width:2px;height:11px;margin-left:-1px;background:var(--tx)}
+/* 评级色点：颜色只是辅助识别，认得出「吉 / 平 / 凶」这件事始终靠文字 */
+.dsh .dsh-dot{display:inline-block;width:7px;height:7px;border-radius:50%;
+  background:var(--tx3);vertical-align:1px}
+.dsh .dsh-dot.d-ji{background:var(--gold)}
+.dsh .dsh-dot.d-ping{background:var(--cyan)}
+.dsh .dsh-dot.d-xiong{background:var(--red)}
+.dsh .dsh-dot.d-all{background:var(--purple)}
+.dsh-card .k .dsh-dot{margin-right:6px}
 
-.dsh-charts{display:grid;grid-template-columns:1fr;gap:14px}
-.dsh-chart{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px 15px 8px}
+/* ⚠️ minmax(0,1fr) 而不是 1fr：1fr 的最小值是 auto，图表内部 .dsh-plot 的
+   min-width 会顺着 grid 项一路把整列撑宽，最终撑出**整页**的横向滚动条。
+   窄屏的横向滚动必须只发生在 .dsh-scroll 这一层里。 */
+.dsh-charts{display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
+.dsh-chart{min-width:0;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px 15px 10px}
 .dsh-chart .ct{font-size:13px;color:var(--tx);margin-bottom:8px;line-height:1.5}
 .dsh-chart .ct-sub{font-size:11.5px;color:var(--tx3);margin-left:8px}
 .dsh-mini{font-size:12px;color:var(--tx3);padding:18px 0;text-align:center}
 
+/* 读图提示：**常驻在图上方**，不藏进悬浮提示 —— 用户读不懂的恰恰是这一句 */
+.dsh-hint{background:var(--sunk);border:1px solid var(--line2);border-radius:9px;
+  padding:8px 12px;margin-bottom:10px;font-size:12.5px;color:var(--tx2);line-height:1.75}
+.dsh-hint b{color:var(--tx)}
+.dsh-scroll-hint{display:none}
+
+/* 浮层定位的包含块 = .dsh-plot，它的宽度恒等于 SVG 的宽度，
+   所以组件里按 viewBox 比例算出的百分比在任何缩放 / 滚动位置都贴住同一根柱 */
+.dsh-scroll,.dsh-plot{position:relative}
+
+/* 工具提示：横向默认居中；靠近面板左右边缘时改锚点，否则半个浮层会被切掉 */
+.dsh-tip{position:absolute;z-index:6;pointer-events:none;transform:translate(-50%,-100%);
+  background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:6px 10px;
+  box-shadow:var(--sh2);font-size:12px;line-height:1.55;color:var(--tx);white-space:nowrap}
+.dsh-tip.below{transform:translate(-50%,0)}
+.dsh-tip.at-l{transform:translate(0,-100%)}
+.dsh-tip.at-l.below{transform:translate(0,0)}
+.dsh-tip.at-r{transform:translate(-100%,-100%)}
+.dsh-tip.at-r.below{transform:translate(-100%,0)}
+.dsh-tip b{display:block;font-weight:500}
+.dsh-tip span{display:block;color:var(--tx3);font-size:11.5px}
+
+/* 数据表：逐格给出颗数与分母，给键盘 / 读屏 / 需要精确数字的人 */
+.dsh-tbl{margin-top:12px;border-top:1px solid var(--line2);padding-top:10px}
+.dsh-tbl>summary{cursor:pointer;list-style:none;font-size:12.5px;color:var(--purple);
+  display:flex;align-items:center;gap:6px}
+.dsh-tbl>summary::-webkit-details-marker{display:none}
+.dsh-tbl>summary::after{content:'\25BE';color:var(--tx3);font-size:11px;transition:transform .18s}
+.dsh-tbl[open]>summary::after{transform:rotate(180deg)}
+.dsh-tbl>summary:hover{color:var(--purple-d)}
+.dsh-tbl table{width:100%;border-collapse:collapse;margin-top:9px;font-size:11.5px;color:var(--tx2)}
+.dsh-tbl th,.dsh-tbl td{padding:4px 6px;border-bottom:1px solid var(--line2);text-align:left;
+  vertical-align:middle}
+.dsh-tbl th{color:var(--tx3);font-weight:400;font-size:11px}
+.dsh-tbl td.c,.dsh-tbl th.c{text-align:right}
+.dsh-tbl td.num{font-variant-numeric:tabular-nums}
+.dsh-tbl td.mono{font-variant-numeric:tabular-nums;color:var(--tx3)}
+
 .dsh-svg{display:block;width:100%;height:auto}
-.dsh-svg .ax line{stroke:var(--line2);stroke-width:1}
-.dsh-svg .ax line.soft{stroke:var(--pl-dash);stroke-width:1.2;stroke-dasharray:4 4}
-.dsh-svg .lb text{fill:var(--tx3);font-size:11px}
+/* 网格线：统一挂 .gl。直方图的三块面板里没有 .ax 包着，所以不能按 .ax line 选 */
+.dsh-svg line.gl{stroke:var(--line2);stroke-width:1}
+.dsh-svg line.soft{stroke:var(--pl-dash);stroke-width:1.2;stroke-dasharray:4 4}
+
+/* 一根柱 = 一个可交互单元（整列都是热区）。0 颗的那一列也能被问到「为什么是 0」，
+   这比只让有柱的地方可点更好 —— 否则用户会以为那一格不存在。 */
+.dsh-svg .bin{cursor:default;outline:none}
+.dsh-svg .bin .hit{fill:var(--tx4);fill-opacity:0}
+.dsh-svg .bin:hover .hit,.dsh-svg .bin:focus .hit{fill-opacity:.13}
+.dsh-svg .bin:focus .hit{stroke:var(--tx3);stroke-width:1;stroke-dasharray:3 3}
+.dsh-svg .bin .bar{transition:opacity .12s}
+.dsh-svg .bin:hover .bar,.dsh-svg .bin:focus .bar{opacity:1}
+
+.dsh-svg text{fill:var(--tx3);font-size:11px}
 .dsh-svg .lb.sm text{font-size:10.5px}
-.dsh-svg .lb text.zhi{fill:var(--tx2);font-size:12px}
-.dsh-svg .lb text.cnt{fill:var(--tx2);font-size:10.5px}
-.dsh-svg .lb text.ax-t{fill:var(--tx3);font-size:11px}
+.dsh-svg text.bk{font-size:15px;font-weight:500}
+.dsh-svg text.bk-ji{fill:var(--gold)}
+.dsh-svg text.bk-ping{fill:var(--cyan)}
+.dsh-svg text.bk-xiong{fill:var(--red)}
+.dsh-svg text.bn{fill:var(--tx3);font-size:11.5px}
+.dsh-svg text.bm{fill:var(--tx2);font-size:11.5px}
+.dsh-svg text.bs{fill:var(--tx3);font-size:10.5px}
+.dsh-svg text.be{fill:var(--tx3);font-size:11px}
+.dsh-svg text.by{fill:var(--tx3);font-size:10.5px}
+.dsh-svg text.cnt{fill:var(--tx2);font-size:10.5px;font-variant-numeric:tabular-nums}
+.dsh-svg text.zhi{fill:var(--tx2);font-size:12.5px}
+.dsh-svg text.zrng{fill:var(--tx4);font-size:9.5px;font-variant-numeric:tabular-nums}
+.dsh-svg text.ax-t{fill:var(--tx3);font-size:11px}
+
 .dsh-svg rect.bb-ji{fill:var(--gold);opacity:.85}
 .dsh-svg rect.bb-ping{fill:var(--cyan);opacity:.85}
 .dsh-svg rect.bb-xiong{fill:var(--red);opacity:.85}
@@ -960,12 +1022,31 @@ h2 small{font-weight:400;color:var(--tx3);font-size:12.5px;margin-left:8px;lette
 .dsh-note{background:var(--card);border:1px solid var(--line);border-radius:12px;
   padding:13px 17px;margin-top:14px;font-size:12.5px;color:var(--tx2);line-height:1.9}
 .dsh-note>div+div{margin-top:5px}
-.dsh-note.warn{border-color:var(--warn-line);background:var(--warn-bg)}
 .dsh-note b{color:var(--tx)}
 .dsh-note .dim{color:var(--tx3);font-size:12px}
 
 /* 并排的两列图（生存曲线 / 回测）：窄屏堆叠，宽屏才并排 */
-@media (min-width:1040px){.dsh-charts.two{grid-template-columns:1fr 1fr}}
+@media (min-width:1040px){.dsh-charts.two{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+
+/* ── 窄屏 ────────────────────────────────────────────────────────────────────
+   图表是自绘 SVG，等比缩放会把字号一起缩掉（375px 下 11px 会变成 3px 出头）。
+   所以在窄屏**只让图表区域横向滚动**，并给一个至少 0.7 倍的比例，字号才守得住；
+   整页不产生横向溢出（滚动容器只包住 SVG 那一层）。 */
+@media (max-width:860px){
+  .dsh-scroll{min-width:0;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .dsh-plot{min-width:700px}
+  .dsh-chart.dsh-sm .dsh-plot{min-width:520px}
+  .dsh-scroll-hint{display:block;font-size:11px;color:var(--tx4);text-align:center;margin-top:5px}
+  /* ⚠️ .phint 是 nowrap 的一行长句（卡池表表头右侧那句提示），375px 下它会撑到 ~400px，
+     把**整页**顶出横向滚动条 —— 连 fixed 定位的返回顶部按钮都会跟着错位。窄屏放开折行。 */
+  .phint{white-space:normal}
+}
+@media (max-width:520px){.dsh-cards,.dsh-cards-p{grid-template-columns:1fr}}
+
+/* 本页图表不做持续动画，只有浮层与悬停的极短过渡 —— 一并尊重系统的减弱设置 */
+@media (prefers-reduced-motion:reduce){
+  .dsh-tip,.dsh-svg .bin .bar,.dsh-tbl>summary::after{transition:none}
+}
 /* 英文态的卡片标题长得多（"Inauspicious hours" vs「凶时」），下限放宽避免折成三行 */
 [data-lang="en"] .dsh-cards{grid-template-columns:repeat(auto-fit,minmax(186px,1fr))}
 [data-lang="en"] .dsh-cards-p{grid-template-columns:repeat(auto-fit,minmax(268px,1fr))}
