@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// 崩铁抽卡分析平台 · 本地服务
+// Star Rail Warp Analyzer · 本地服务
 //
 // 为什么需要它（纯静态页做不到的两件事）：
 //   ① 官方抽卡接口不带 CORS 头，浏览器里直接 fetch 会被拦 → 抓取必须走服务端代理
@@ -19,7 +19,6 @@ const external = require('../core/external.js');
 const divination = require('../core/divination.js');
 const zeri = require('../core/zeri.js');
 const banner = require('../core/banner.js');
-const bannerPhase = require('../core/banner-phase.js');
 const { fetchAll } = require('./fetch.js');
 
 const ROOT = path.join(__dirname, '..');
@@ -309,26 +308,6 @@ const ROUTES = {
     }
   },
 
-  // ── 卡池节奏：每个真实卡池开放实例的前/中/后三段 ──────────────────────────
-  // 与「抽卡分析」页共用同一份去重记录，但口径完全独立：这里的时间单位是**卡池自己**的
-  // 开放区间（见 core/banner-phase.js），不是版本半期。历史真值表随代码发布且只读。
-  // ?pools = normal(默认 11+12) | ch(11) | lc(12) | ld(21+22) | all
-  // ?now=YYYY-MM-DD HH:mm 可覆盖「此刻」（验收脚本用）
-  'GET /api/banner-timing': (req, res) => {
-    const q = url.parse(req.url, true).query;
-    const MAP = { normal: [11, 12], ch: [11], lc: [12], ld: [21, 22], all: [11, 12, 21, 22] };
-    const pools = MAP[String(q.pools || 'normal')] || MAP.normal;
-    try {
-      const recs = store.readStore().records || [];
-      const nowMs = q.now ? bannerPhase.parseServerTime(String(q.now)) : undefined;
-      const r = bannerPhase.build({ records: recs, pools, nowMs: isFinite(nowMs) ? nowMs : undefined });
-      // names 一并带上：页面用 W.I18N.registerNames() 收下它，4.6 的角色/光锥就有了官方英文名
-      sendJSON(res, Object.assign({ ok: true }, r, { calendar: banner.cacheInfo(), names: banner.cacheNames() }));
-    } catch (e) {
-      sendJSON(res, { ok: false, error: String(e && e.message || e) });
-    }
-  },
-
   // 轻量修订号：给已经打开的页面轮询用（需求 §2：不能只写文件而指望浏览器自己刷新）。
   // ⚠️ 刻意做得极轻：只读两个 stat 加一份按 mtime 记忆的缓存，不碰 records.json 的内容。
   'GET /api/revisions': (req, res) => sendJSON(res, {
@@ -423,7 +402,7 @@ listen(PORT_START, 12);
 
 // ── 卡池日历：每次启动都后台联网检查一次（需求 §2「每次运行」的定义）────────────
 // ⚠️ 只做「检查」不做「覆盖」：拉到的新数据先进运行时快照（data/banner-cache.json），
-//    已核实的历史真值表（core/banner-history.json）绝不会被第三方响应改写。
+//    页面每次都以这份快照为准，绝不改写任何原始记录。
 // ⚠️ 延迟一小会儿再发起，避免跟首屏的资源请求抢带宽；失败只打日志，不影响任何本地功能。
 setTimeout(() => {
   try { banner.checkInBackground({ records: store.readStore().records }); }

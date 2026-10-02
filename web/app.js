@@ -1,11 +1,11 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // 应用外壳：左侧功能栏 + 右侧内容区
-// 左栏分四组：分析（抽卡分析 / 卡池节奏 / 角色管理 / 八卦占卜）· 数据（抓取与数据管理）·
+// 左栏分四组：分析（抽卡分析 / 角色管理 / 八卦占卜）· 数据（抓取与数据管理）·
 // 帮助（解释说明）· 后续开发（占位）
 // 跨页跳转用 app.provide('goto') 下发，页面内部用 inject:['goto'] 取（例如「详见解释说明」）。
 //
 // ⚠️ 导航顺序即 .side .navi 的下标 —— tools/verify-i18n.js、shoot-help.js、shoot-readme.js、
-//    verify-glass.js 都按下标点导航。**在这里插一条就必须同步改那四个脚本的下标**。
+//    verify-theme.js 都按下标点导航。**在这里插一条就必须同步改那四个脚本的下标**。
 // ─────────────────────────────────────────────────────────────────────────────
 (function () {
   'use strict';
@@ -14,7 +14,6 @@
   const NAV = [
     { g: '分析', items: [
       { k: 'analysis', ic: '◎', name: '抽卡分析' },
-      { k: 'bannerphase', ic: '◷', name: '卡池节奏' },
       { k: 'roles', ic: '✦', name: '角色管理' },
       { k: 'divination', ic: '☯', name: '八卦占卜' },
     ] },
@@ -39,7 +38,7 @@
   };
 
   // ── 主题 ──────────────────────────────────────────────────────────────────
-  // 四套主题的**配色定义全在 web/theme.css**（按 <html data-theme> 切），
+  // 三套主题的**配色定义全在 web/theme.css**（按 <html data-theme> 切），
   // 这里只负责「选哪一套」+ 持久化，不碰任何颜色值。
   // ⚠️ 首帧防闪烁靠 index.html <head> 里的内联脚本 —— 不能等 Vue 挂载再设，
   //    否则会先白闪一下再变深色。两边用的 key 必须一致。
@@ -48,7 +47,6 @@
     { k: 'vivid', n: '炫彩', tip: '取自 logo 的深空星云配色：电光蓝 → 紫 → 青，配车头暖光' },
     { k: 'light', n: '明亮', tip: '原来的浅色配色' },
     { k: 'dark', n: '暗黑', tip: '中性冷灰暗色，长时间看不刺眼' },
-    { k: 'glass', n: '玻璃', tip: '液态玻璃：亮色底 + 真透面板，边缘有折射亮边，指针划过会亮' },
   ];
   const THEME_KEYS = THEMES.map(t => t.k);
   const readTheme = () => {
@@ -57,53 +55,12 @@
       return THEME_KEYS.indexOf(t) >= 0 ? t : 'vivid';
     } catch (e) { return 'vivid'; }
   };
-  // ── 液态玻璃的指针高光 ────────────────────────────────────────────────────
-  // 指针划过玻璃面板时，把那一点照亮（--mx / --my 交给 theme.css 第 6c 条去渲染）。
-  // 这几个选择器必须与 theme.css 第 6c 条一致，那边是「宿主」，这里是「谁被照亮」。
-  //
-  // ⚠️ 只在 glass 主题下监听。别的主题不挂 —— getBoundingClientRect 会强制同步布局，
-  //    每帧都读一次，不能让不相关的主题白付这份钱。
-  // ⚠️ 用 pointermove **委托**（一个监听管全页）配 rAF 合帧：指针在一帧里可能触发
-  //    几十次事件，不合并就会几十次读布局。
-  // ⚠️ 尊重「减弱动态效果」：用户开了就一直不挂，中途改设置也能跟上。
-  const HL_SEL = '.side,.st,.note,.lg,.grid,.pgrid,.hp-fig,.hp-kv,.hp-eq,.dsh-card,.pool-row';
-  const hlMotion = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
-  let hlRaf = 0, hlPt = null, hlLast = null;
-  const hlPaint = (el, x, y) => {
-    const r = el.getBoundingClientRect();
-    if (!r.width || !r.height) return;
-    el.style.setProperty('--mx', ((x - r.left) / r.width * 100).toFixed(2) + '%');
-    el.style.setProperty('--my', ((y - r.top) / r.height * 100).toFixed(2) + '%');
-  };
-  const hlReset = () => {
-    if (hlLast) { hlLast.style.removeProperty('--mx'); hlLast.style.removeProperty('--my'); hlLast = null; }
-  };
-  const onGlassMove = (e) => {
-    const el = e.target && e.target.closest ? e.target.closest(HL_SEL) : null;
-    if (!el) { hlReset(); hlPt = null; return; }
-    hlLast = el;
-    hlPt = { el, x: e.clientX, y: e.clientY };
-    if (hlRaf) return;
-    hlRaf = requestAnimationFrame(() => { hlRaf = 0; if (hlPt) hlPaint(hlPt.el, hlPt.x, hlPt.y); });
-  };
-  const syncGlassHi = () => {
-    window.removeEventListener('pointermove', onGlassMove);
-    if (hlMotion && hlMotion.matches) { hlReset(); return; }
-    if (document.documentElement.getAttribute('data-theme') === 'glass') {
-      window.addEventListener('pointermove', onGlassMove, { passive: true });
-    }
-  };
-  if (hlMotion && hlMotion.addEventListener) {
-    hlMotion.addEventListener('change', syncGlassHi);
-  }
-
   const theme = ref(readTheme());
   const setTheme = (k) => {
     if (THEME_KEYS.indexOf(k) < 0) return;
     theme.value = k;
     document.documentElement.setAttribute('data-theme', k);
     try { localStorage.setItem(THEME_KEY, k); } catch (e) { /* 隐私模式下写不进去，不影响切换 */ }
-    syncGlassHi();      // 切进 / 切出玻璃主题时，把指针高光的监听一起挂上或摘掉
   };
 
   const App = {
@@ -134,12 +91,10 @@
         window.addEventListener('scroll', onScroll, { passive: true });
         // 内联脚本已设过一次；这里再对齐一回，防止 <html> 上的值与内存状态不一致
         document.documentElement.setAttribute('data-theme', theme.value);
-        syncGlassHi();     // 首帧就是玻璃主题的话，指针高光的监听也要挂上
         W.I18N.setLang(W.I18N.lang.value);
       });
       onUnmounted(() => {
         window.removeEventListener('scroll', onScroll);
-        window.removeEventListener('pointermove', onGlassMove);
       });
       return { NAV, page, goto, a, loading, err, load, showTop, toTop, theme, THEMES, setTheme, lang: W.I18N.lang, setLang: W.I18N.setLang };
     },
@@ -160,7 +115,7 @@
           </button>
         </template>
         <div class="sfoot">
-          <!-- 主题切换：四套配色定义在 web/theme.css，这里只切 <html data-theme> -->
+          <!-- 主题切换：三套配色定义在 web/theme.css，这里只切 <html data-theme> -->
           <div class="thm">
             <span class="thm-h">{{ t('主题') }}</span>
             <div class="thm-g">
@@ -202,8 +157,6 @@
         </div>
         <template v-else>
           <w-analysis-page v-if="page === 'analysis'" :a="a"></w-analysis-page>
-          <!-- 卡池节奏：不依赖分析结果（自己读 /api/banner-timing），所以即使 a 为空也能进 -->
-          <w-banner-phase-page v-else-if="page === 'bannerphase'" :a="a"></w-banner-phase-page>
           <w-role-page v-else-if="page === 'roles'" :a="a"></w-role-page>
           <w-divination-page v-else-if="page === 'divination'" :a="a"></w-divination-page>
           <w-help-page v-else-if="page === 'help'" :a="a"></w-help-page>
@@ -264,7 +217,6 @@
   app.component('w-shot-import', W.ShotImport);
   // 注：w-audit（数据校验：与工坊对账）已按需求 1.2-4 下线
   app.component('w-analysis-page', W.AnalysisPage);
-  app.component('w-banner-phase-page', W.BannerPhasePage);
   app.component('w-role-page', W.RolePage);
   app.component('w-divination-page', W.DivinationPage);
   app.component('w-help-page', W.HelpPage);

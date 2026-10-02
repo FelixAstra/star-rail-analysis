@@ -63,7 +63,7 @@ function ping(port, p) {
 
   // 端点冒烟
   const endpoints = ['/', '/api/status', '/api/analysis', '/api/meta',
-    '/api/divination', '/api/zeri', '/api/banner-timing', '/api/revisions',
+    '/api/divination', '/api/zeri', '/api/revisions',
     '/theme.css', '/assets/logo.png'];
   let failed = 0;
   for (const p of endpoints) {

@@ -10,7 +10,7 @@
      key 必须与 app.js 里的 THEME_KEY 一致（sr.theme）。 -->
 <script>
 (function () {
-  var K = 'sr.theme', OK = ['vivid', 'light', 'dark', 'glass'], t = 'vivid';
+  var K = 'sr.theme', OK = ['vivid', 'light', 'dark'], t = 'vivid';
   try { var v = localStorage.getItem(K); if (OK.indexOf(v) >= 0) t = v; } catch (e) {}
   document.documentElement.setAttribute('data-theme', t);
   // 语言与主题同理：首帧之前就定下来，en 模式的排版微调靠 [data-lang]
@@ -27,57 +27,6 @@
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<!-- Liquid Glass 的折射滤镜（只有 glass 主题会引用它们；其它主题 --blur 为 0，也从不 url() 它们）。
-
-     ⚠️ 位移场必须先过一道 feGaussianBlur：直接拿 feTurbulence 的噪声去位移，
-        出来的是毛玻璃颗粒感，不是液态起伏 —— 平滑过的噪声才会形成大尺度弯折。
-     ⚠️ color-interpolation-filters 必须显式写 sRGB。默认的 linearRGB 会让
-        位移图的通道值非线性，同样的 scale 在不同元素上弯折程度对不上。
-     ⚠️ 引用这两条滤镜的 backdrop-filter 在 Safari / Firefox 上会被**整条丢弃**
-        （它们不支持在 backdrop-filter 里用 url()），于是自动退到纯 CSS 的模糊版。
-        这是有意的降级路径，不是缺陷 —— README 与主题说明里都写了。
-
-     #lg-refract —— 小元件用，带**色散**。
-       真实玻璃的厚边会把白光散开，所以同一个背景点在三通道里的弯折量并不相同。
-       这里让 R / G / B 各弯一次（位移量 13 / 9 / 17），再用三条 feColorMatrix
-       各只留一个通道，最后 feBlend screen 合回去。
-       ⚠️ 之所以能用 screen 合：screen 在互不重叠的单通道上等价于相加，
-          于是**位移完全一致处的结果与原始分毫不差**，只在三通道错开的地方
-          才显出彩边。这一步是色散，不是调色 —— 换成别的混合模式会把整片压亮。
-     #lg-refract-lg —— 侧栏用，单次位移、不带色散。
-       三个通道各弯一次放在 100vh 的面积上太贵，而色散的收益并不随面积增长。 -->
-<svg width="0" height="0" aria-hidden="true" focusable="false"
-     style="position:absolute;width:0;height:0;overflow:hidden">
-  <defs>
-    <filter id="lg-refract" x="-8%" y="-8%" width="116%" height="116%"
-            color-interpolation-filters="sRGB">
-      <feTurbulence type="fractalNoise" baseFrequency="0.009 0.014" numOctaves="1" seed="11" result="noise"/>
-      <feGaussianBlur in="noise" stdDeviation="4" result="thick"/>
-      <feDisplacementMap in="SourceGraphic" in2="thick" scale="13"
-                         xChannelSelector="R" yChannelSelector="G" result="dR"/>
-      <feDisplacementMap in="SourceGraphic" in2="thick" scale="9"
-                         xChannelSelector="R" yChannelSelector="G" result="dG"/>
-      <feDisplacementMap in="SourceGraphic" in2="thick" scale="17"
-                         xChannelSelector="R" yChannelSelector="G" result="dB"/>
-      <feColorMatrix in="dR" type="matrix"
-                     values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="cR"/>
-      <feColorMatrix in="dG" type="matrix"
-                     values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="cG"/>
-      <feColorMatrix in="dB" type="matrix"
-                     values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="cB"/>
-      <feBlend in="cR" in2="cG" mode="screen" result="cRG"/>
-      <feBlend in="cRG" in2="cB" mode="screen"/>
-    </filter>
-    <filter id="lg-refract-lg" x="-8%" y="-8%" width="116%" height="116%"
-            color-interpolation-filters="sRGB">
-      <feTurbulence type="fractalNoise" baseFrequency="0.006 0.010" numOctaves="1" seed="5" result="noise"/>
-      <feGaussianBlur in="noise" stdDeviation="5" result="thick"/>
-      <feDisplacementMap in="SourceGraphic" in2="thick" scale="10"
-                         xChannelSelector="R" yChannelSelector="G"/>
-    </filter>
-  </defs>
-</svg>
-
 <div id="app"></div>
 
 <!-- Vue 3（本地 vendor，无构建、无 npm 依赖） -->
@@ -91,7 +40,6 @@
 <script src="match.js"></script>
 <script src="components/shared.js"></script>
 <script src="components/dashboard.js"></script>
-<script src="components/bannerphase.js"></script>
 <script src="components/analysis.js"></script>
 <script src="components/roles.js"></script>
 <script src="components/divination.js"></script>

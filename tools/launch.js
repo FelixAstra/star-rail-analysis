@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // ─────────────────────────────────────────────────────────────────────────────
-// 崩铁抽卡分析平台 · 跨平台启动器
+// Star Rail Warp Analyzer · 跨平台启动器
 //
 // 这是启动逻辑的**唯一实现**：start.command（macOS/Linux）与 start.bat（Windows）
 // 都只是薄壳，真正干活的在这里 —— 因为 Node 代码可以在 macOS 上完整测试，
@@ -149,7 +149,7 @@ function ping(port) {
 async function main() {
   const uid = readUid();
   console.log('════════════════════════════════════════');
-  console.log('  崩铁抽卡分析平台 / Star Rail Warp Analyzer');
+  console.log('  Star Rail Warp Analyzer');
   console.log('  UID ' + (uid || '尚未导入 / no data yet') + ' · 本地运行，数据不出本机');
   console.log('════════════════════════════════════════');
   console.log('');

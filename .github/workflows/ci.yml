@@ -29,11 +29,8 @@ jobs:
       - name: Dashboard statistics & forecast assertions (offline, data-independent)
         run: node tools/verify-dashboard.js
 
-      - name: Banner-phase mapping & aggregation assertions (offline, data-independent)
-        run: node tools/verify-banner-phase.js
-
       - name: i18n coverage (zh + en)
         run: node tools/check-i18n.js
 
-      - name: Boot smoke test (empty data, 10 endpoints)
+      - name: Boot smoke test (empty data, 9 endpoints)
         run: node tools/ci-smoke.js

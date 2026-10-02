@@ -259,7 +259,8 @@ const readRecords = () => {
   {
     const https = require('https');
     const cachePath = B.CACHE_FILE;
-    const backup = fs.existsSync(cachePath) ? fs.readFileSync(cachePath) : null;
+    const st0 = fs.existsSync(cachePath) ? fs.statSync(cachePath) : null;
+    const backup = st0 ? fs.readFileSync(cachePath) : null;
     const realGet = https.get;
     try {
       https.get = function () {
@@ -294,8 +295,17 @@ const readRecords = () => {
       rec(false, '⑨ 离线降级', e.message);
     } finally {
       https.get = realGet;
-      if (backup) fs.writeFileSync(cachePath, backup);   // 原样还原
+      if (backup) {
+        fs.writeFileSync(cachePath, backup);   // 原样还原（字节）
+        // ⚠️ 光还原字节不够：这一组断言是**在真实 data/ 上**写一次缓存的（本机跑时），
+        //    只还原内容的话 mtime 会停在本次运行的时刻，看起来就像「真实数据被别人动过」。
+        //    排查数据安全问题时极易被这个假信号带偏（真踩过：为它白查了一轮写入来源）。
+        //    所以连 atime/mtime 一起还原，「原样还原」才是字面意义上的原样。
+        try { fs.utimesSync(cachePath, st0.atime, st0.mtime); } catch (e) {}
+      }
       rec(backup && fs.readFileSync(cachePath).equals(backup), '⑨ 验证后缓存已原样还原');
+      rec(!st0 || Math.abs(fs.statSync(cachePath).mtimeMs - st0.mtimeMs) < 1,
+        '⑨ 验证后缓存的 mtime 也原样（不留「被人动过」的假信号）');
     }
   }
 

@@ -10,8 +10,8 @@ Pull rates, pity progress, and every limited 5★ you own — computed on your o
 <sub>Fictional demo data. The app runs entirely on <code>127.0.0.1</code> and uploads nothing.</sub>
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![CI](https://github.com/FelixAstra/star-rail-analysis/actions/workflows/ci.yml/badge.svg)](https://github.com/FelixAstra/star-rail-analysis/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/badge/download-zip-orange.svg)](https://github.com/FelixAstra/star-rail-analysis/releases/latest)
+[![CI](https://github.com/FelixAstra/star-rail-analyzer/actions/workflows/ci.yml/badge.svg)](https://github.com/FelixAstra/star-rail-analyzer/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/badge/download-zip-orange.svg)](https://github.com/FelixAstra/star-rail-analyzer/releases/latest)
 [![Node](https://img.shields.io/badge/node-%E2%89%A518-3c873a.svg)](https://nodejs.org)
 [![Dependencies](https://img.shields.io/badge/runtime%20dependencies-0-success.svg)](#quick-start)
 
@@ -39,13 +39,13 @@ Web-based warp trackers ask you to hand your `authkey` to a third-party server. 
 
 **No git? Grab the zip**
 
-Download [`star-rail-analysis.zip`](https://github.com/FelixAstra/star-rail-analysis/releases/latest/download/star-rail-analysis.zip), unzip it, and double-click the launcher inside (`start.command` on macOS, `start.bat` on Windows). It ships with an **empty** `data/` folder — your first import creates your archive.
+Download [`star-rail-analyzer.zip`](https://github.com/FelixAstra/star-rail-analyzer/releases/latest/download/star-rail-analyzer.zip), unzip it, and double-click the launcher inside (`start.command` on macOS, `start.bat` on Windows). It ships with an **empty** `data/` folder — your first import creates your archive.
 
 **macOS / Linux**
 
 ```bash
-git clone https://github.com/FelixAstra/star-rail-analysis.git
-cd star-rail-analysis
+git clone https://github.com/FelixAstra/star-rail-analyzer.git
+cd star-rail-analyzer
 ./start.command          # or just double-click start.command in Finder
 ```
 
@@ -56,8 +56,8 @@ It starts a local server, opens your browser, and stops when you close the termi
 **Windows**
 
 ```bat
-git clone https://github.com/FelixAstra/star-rail-analysis.git
-cd star-rail-analysis
+git clone https://github.com/FelixAstra/star-rail-analyzer.git
+cd star-rail-analyzer
 start.bat
 ```
 
@@ -170,15 +170,13 @@ The divination page follows rules fixed up front, and the app is built to keep t
 
 ### Theming
 
-Four themes ship in the box, switchable from the bottom of the sidebar and remembered in `localStorage`. The default is derived from the project logo: **vivid** (deep-space indigo with neon accents), **light**, **dark**, and **glass** (a bright liquid-glass material).
+Three themes ship in the box, switchable from the bottom of the sidebar and remembered in `localStorage`: **vivid** (deep-space indigo with neon accents, derived from the project logo), **light**, and **dark**.
 
-<img src="assets/readme/themes.png" alt="The same dashboard shown in all four themes: vivid (dark indigo and neon), light, dark, and glass (bright colour blooms behind translucent panels)" width="880">
+<img src="assets/readme/themes.png" alt="The same dashboard shown in all three themes: vivid (dark indigo and neon), light, and dark" width="880">
 
-All colours live in **`web/theme.css`** as semantic tokens. `styles.css` and the components reference tokens for every themable colour; the only literals left are a handful of theme-agnostic shadow alphas and the four theme-swatch gradients. Switching is a single `data-theme` attribute on `<html>`, applied synchronously by an inline `<head>` script so the first frame never flashes the wrong palette. The divination compass, plastron and coins are pure SVG/CSS and re-colour with the theme.
+All colours live in **`web/theme.css`** as semantic tokens. `styles.css` and the components reference tokens for every themable colour; the only literals left are a handful of theme-agnostic shadow alphas and the three theme-swatch gradients. Switching is a single `data-theme` attribute on `<html>`, applied synchronously by an inline `<head>` script so the first frame never flashes the wrong palette. The divination compass, plastron and coins are pure SVG/CSS and re-colour with the theme.
 
-The **glass** theme follows the liquid-glass recipe rather than plain frosted blur, and what separates the two is optical rather than decorative. Its base is **bright**: the panel fill sits near 0.5 white so the colour behind it reaches the surface, and six saturated blooms — four in the corners, two across the middle — act as the light source the material borrows from. The backdrop is not merely blurred: saturation is raised and contrast lowered, which is what makes colours read as deeper and softer through the glass rather than simply dimmer. The edge carries a rim of light that is brightest along the top and a cool inner shadow along the bottom, because a bright rim against a bright base reads as nothing and the panel loses its thickness. In Chromium the backdrop is displaced by an SVG filter — `feTurbulence`, smoothed by `feGaussianBlur`, into `feDisplacementMap` — and that displacement runs three times at different scales, one per colour channel, recombined with `feBlend` in `screen` mode, so an edge disperses light the way a thick edge of glass does. `backdrop-filter` does not accept a `url()` filter in Safari or Firefox; those browsers drop that one declaration and keep the plain blurred version, so the theme degrades instead of breaking. Pointer movement feeds `--mx` / `--my` on panel surfaces; the highlight and the hover lift are both switched off under `prefers-reduced-motion`. Displacement is applied to small controls and to the sidebar, not to long tables — its cost scales with area, and a full-width table costs frames while scrolling.
-
-Two token families are kept apart on purpose. `--line` and `--line2` stay cool, visible structural rules, because table rows and chart axes are drawn with them; the bright glass rim comes from the inset highlights and a border-colour override on panel faces. Painted white, the structural rules would disappear against the panels they sit on.
+`--line` and `--line2` stay cool, visible structural rules rather than decoration, because table rows and chart axes are drawn with them; themed depth comes from the `--sh*` shadows. Painted white, the structural rules would disappear against the panels they sit on.
 
 <img src="assets/readme/divination.png" alt="Divination page: the current banner with its remaining time, a circular bagua plate, the six-line casting panel, and controls for casting method, banner and pity state" width="880">
 
@@ -187,7 +185,7 @@ Two token families are kept apart on purpose. `--line` and `--line2` stay cool, 
 ## Project layout
 
 ```
-star-rail-analysis/
+star-rail-analyzer/
 ├── start.command            macOS/Linux launcher (thin shell)
 ├── start.bat                Windows launcher (thin shell, CRLF via .gitattributes)
 ├── .github/workflows/       CI (syntax + engine assertions + boot smoke) and release (zip builder)
@@ -212,7 +210,7 @@ star-rail-analysis/
 │   └── icons.js             Icon and index auto-update
 ├── web/                     Front end — Vue 3, no build step
 │   ├── index.html           First-paint theme script lives in <head>
-│   ├── theme.css            Every colour of all four themes
+│   ├── theme.css            Every colour of all three themes
 │   ├── i18n.js              Language switch: t() / L() / official English names / <html data-lang>
 │   ├── i18n.dict.js         English dictionary for short labels, keyed by the Chinese source string
 │   ├── styles.css           Layout; references tokens for all themable colours
@@ -224,18 +222,18 @@ star-rail-analysis/
 ├── tools/
 │   ├── launch.js            The actual launcher logic (both shells delegate here)
 │   ├── make-release-zip.js  Build the release zip from a clean git tree
-│   ├── ci-smoke.js          Boot the server on empty data and probe 8 endpoints
+│   ├── ci-smoke.js          Boot the server on empty data and probe 9 endpoints
 │   ├── make-demo-data.js    Generate fictional demo data into data/
 │   ├── build-gua-data.js    Rebuild core/gua-data.js from three open datasets
 │   ├── verify-divination.js Monte-Carlo check of the divination engine
 │   ├── verify-banner.js     Banner calendar, date picking, offline fallback
 │   ├── verify-dashboard.js  Mathematical properties of the chart panels and the pity model
-│   ├── verify-glass.js      Headless-Chrome check that the glass theme's layers are live
+│   ├── verify-theme.js      Headless-Chrome check that all three themes' base colours stay pinned
 │   ├── check-i18n.js        Static bilingual coverage check (runs in CI)
 │   ├── verify-i18n.js       Headless-Chrome check for strings left untranslated on screen
 │   ├── lib/i18n-keys.js     Shared scanners for t('…') keys and L(zh, en) pairs
 │   ├── shoot-help.js        Re-shoot the handbook screenshots via headless Chrome
-│   └── shoot-readme.js      Re-shoot this file's screenshots, incl. the four-theme mosaic
+│   └── shoot-readme.js      Re-shoot this file's screenshots, incl. the three-theme mosaic
 ├── data/                    Your records — git-ignored in full
 └── assets/
     ├── logo.png             Project logo
@@ -254,14 +252,14 @@ node tools/verify-divination.js   # casting probabilities, changing-line rules, 
 node tools/verify-banner.js       # banner calendar parsing, date picking, offline fallback
 node tools/verify-dashboard.js    # chart-panel statistics and the pity model's maths
 node tools/check-i18n.js          # bilingual coverage: dictionary keys, placeholders, paired strings
-node tools/verify-glass.js        # the glass theme's layers, with the app already running
+node tools/verify-theme.js        # the three themes' pinned base colours, app already running
 ```
 
-`verify-divination.js`, `verify-dashboard.js` and `check-i18n.js` run standalone. `verify-banner.js` needs imported records in `data/records.json` **and** network access, so it exits early on a fresh clone or on demo data. `verify-i18n.js` needs the app already running (`node server/server.js`) plus a local Chrome, and accepts `--list` to dump what it found or `--shots` to save screenshots. `verify-glass.js` needs a running app and Chrome too; it drives all four themes and writes screenshots to a temp directory for review.
+`verify-divination.js`, `verify-dashboard.js` and `check-i18n.js` run standalone. `verify-banner.js` needs imported records in `data/records.json` **and** network access, so it exits early on a fresh clone or on demo data. `verify-i18n.js` needs the app already running (`node server/server.js`) plus a local Chrome, and accepts `--list` to dump what it found or `--shots` to save screenshots. `verify-theme.js` needs a running app and Chrome too; it checks all three themes and writes screenshots to a temp directory for review.
 
-CI (`.github/workflows/ci.yml`) runs on every push: a syntax check over every JS file, the divination engine assertions, the bilingual coverage check, and the boot smoke test (`tools/ci-smoke.js`, which exports a clean tree to a temp dir, starts the server on empty data, and probes eight endpoints). Pushing a `v*` tag additionally builds the release zip and publishes it via `.github/workflows/release.yml`.
+CI (`.github/workflows/ci.yml`) runs on every push: a syntax check over every JS file, the divination engine assertions, the bilingual coverage check, and the boot smoke test (`tools/ci-smoke.js`, which exports a clean tree to a temp dir, starts the server on empty data, and probes nine endpoints). Pushing a `v*` tag additionally builds the release zip and publishes it via `.github/workflows/release.yml`.
 
-Screenshots are re-shot with two headless-Chrome scripts that drive the app over the DevTools Protocol: `tools/shoot-help.js` for the handbook, `tools/shoot-readme.js` for the images in this file — including the four-theme mosaic, which is composited inside a throwaway page so that no image tooling is required. Both need **Node 22+** for the global `WebSocket` API, **demo data**, and a server already running; pass `--lang=en` for the English UI these images use, and `--only=themes.png` to re-shoot a single file when only that one has gone stale.
+Screenshots are re-shot with two headless-Chrome scripts that drive the app over the DevTools Protocol: `tools/shoot-help.js` for the handbook, `tools/shoot-readme.js` for the images in this file — including the three-theme mosaic, which is composited inside a throwaway page so that no image tooling is required. Both need **Node 22+** for the global `WebSocket` API, **demo data**, and a server already running; pass `--lang=en` for the English UI these images use, and `--only=themes.png` to re-shoot a single file when only that one has gone stale.
 
 **A gotcha worth knowing if you write your own checks:** several pages use `loading="lazy"` images, so any automated pass must scroll the whole page before measuring them — otherwise it reads "not loaded yet" as "broken".
 

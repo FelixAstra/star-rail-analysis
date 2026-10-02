@@ -436,6 +436,7 @@
   // ═══════════════════════════════════════════════════════════════════════════
   W.PredictDash = {
     props: { a: Object },
+    data() { return { hoveredDot: null }; },
     computed: {
       d() { return this.a.dashboards; },
       pr() { return this.d && this.d.predict; },
@@ -475,7 +476,7 @@
           const idx = n <= 1 ? [0] : [0, n - 1];
           return {
             bandPath: toPath(hi.concat(lo)) + 'Z',
-            dots: bt.points.map((pt, i) => ({ x: X(i + 1), y: Y(pt.actual), v: pt.actual })),
+            dots: bt.points.map((pt, i) => ({ x: X(i + 1), y: Y(pt.actual), v: pt.actual, i: pt.i })),
             cumPath: toPath(bt.points.map((pt, i) => [X(i + 1), Y(pt.cumAvg)])),
             predPath: toPath(bt.points.map((pt, i) => [X(i + 1), Y(pt.pred)])),
             ticks: [0, 0.5, 1].map(f => ({ y: Y(hard * f), v: Math.round(hard * f) })),
@@ -487,9 +488,21 @@
           };
         });
       },
+      btTip() {
+        if (!this.hoveredDot) return null;
+        const q = this.hoveredDot.q;
+        return {
+          pi: this.hoveredDot.pi,
+          i: q.i, v: q.v,
+          x: Math.max(94, Math.min(386, q.x)),
+          y: q.y < 70 ? q.y + 13 : q.y - 58,
+        };
+      },
     },
     methods: {
       pct1, num1,
+      showDot(pi, q) { this.hoveredDot = { pi, q }; },
+      hideDot() { this.hoveredDot = null; },
       nameTx(p) { return this.L(p.name, p.nameEn); },
       padTx(p) { return this.L('已垫 ' + p.padded + ' 抽', p.padded + ' pulls in'); },
       winTx(p, d, v) { return this.L(d + ' 抽内 ' + pct0(v), pct0(v) + ' in ' + d); },
@@ -551,8 +564,9 @@
             </g>
           </svg>
 
-          <svg class="dsh-svg" v-if="btG[pi]" viewBox="0 0 480 220" width="100%" role="img"
-               :aria-label="L('预测与实际出金抽数的折线对比', 'Predicted vs actual pulls per five-star')">
+          <div class="dsh-axis-note" v-if="btG[pi]">{{ L('回测图 · 横轴：历史第几颗五星 · 纵轴：该颗出金抽数', 'Backtest · X: five-star order · Y: pulls for that five-star') }}</div>
+          <svg class="dsh-svg" v-if="btG[pi]" viewBox="0 0 480 220" width="100%" role="img" @mouseleave="hideDot()"
+               :aria-label="L('逐颗五星回测：灰色圆点是实际出金抽数，虚线是预测抽数', 'Five-star backtest: gray dots show actual pulls, dashed line shows predicted pulls')">
             <g class="ax">
               <line v-for="t2 in btG[pi].ticks" :key="'bg' + p.gt + t2.v" class="gl"
                     :x1="btG[pi].L" :x2="btG[pi].R" :y1="t2.y" :y2="t2.y"/>
@@ -560,13 +574,23 @@
             <path :d="btG[pi].bandPath" class="band"/>
             <path :d="btG[pi].cumPath" class="ln-cum"/>
             <path :d="btG[pi].predPath" class="ln-pred"/>
-            <circle v-for="(q, i) in btG[pi].dots" :key="'d' + p.gt + i"
-                    :cx="q.x" :cy="q.y" r="2.2" class="dot"><title>{{ q.v }}</title></circle>
+            <g v-for="(q, i) in btG[pi].dots" :key="'d' + p.gt + i" class="dot-point" tabindex="0"
+               :aria-label="L('第' + q.i + '颗五星：' + q.v + '抽', 'Five-star #' + q.i + ': ' + q.v + ' pulls')"
+               @mouseenter="showDot(pi, q)" @mouseleave="hideDot()"
+               @focus="showDot(pi, q)" @blur="hideDot()" @click="showDot(pi, q)">
+              <circle :cx="q.x" :cy="q.y" r="8" class="dot-hit"/>
+              <circle :cx="q.x" :cy="q.y" r="3" class="dot"/>
+            </g>
             <g class="lb sm">
               <text v-for="t2 in btG[pi].ticks" :key="'by' + p.gt + t2.v"
                     :x="btG[pi].L - 6" :y="t2.y" text-anchor="end" dominant-baseline="central">{{ t2.v }}</text>
               <text v-for="t2 in btG[pi].xTicks" :key="'bx' + p.gt + t2.v"
-                    :x="t2.x" :y="btG[pi].B + 15" :text-anchor="t2.a">{{ L('第' + t2.v + '颗', '#' + t2.v) }}</text>
+                    :x="t2.x" :y="btG[pi].B + 15" :text-anchor="t2.a">{{ L('第' + t2.v + '颗五星', 'Five-star #' + t2.v) }}</text>
+            </g>
+            <g v-if="btTip && btTip.pi === pi" class="dot-tip" aria-hidden="true">
+              <rect :x="btTip.x - 86" :y="btTip.y" width="172" height="46" rx="7" class="dot-tip-bg"/>
+              <text :x="btTip.x" :y="btTip.y + 19" text-anchor="middle" class="dot-tip-main">{{ L('第' + btTip.i + '颗五星', 'Five-star #' + btTip.i) }}</text>
+              <text :x="btTip.x" :y="btTip.y + 36" text-anchor="middle" class="dot-tip-sub">{{ L('实际出金：' + btTip.v + ' 抽', 'Actual: ' + btTip.v + ' pulls') }}</text>
             </g>
           </svg>
           <div class="dsh-mini" v-else>{{ L('样本还太少，回测暂不展示', 'Not enough samples for a backtest yet') }}</div>
@@ -575,7 +599,8 @@
 
       <div class="dsh-legend">
         <span><i class="sw-model"></i>{{ L('模型预测', 'Model') }}</span>
-        <span><i class="sw-emp"></i>{{ L('实际样本', 'Observed') }}</span>
+        <span><i class="sw-emp"></i>{{ L('实际累计出金概率（上图）', 'Observed cumulative rate (top chart)') }}</span>
+        <span><i class="sw-dot"></i>{{ L('每颗五星实际出金抽数（灰点）', 'Actual pulls per five-star (gray dots)') }}</span>
         <span><i class="sw-cum"></i>{{ L('累积平均', 'Running mean') }}</span>
         <span><i class="sw-band"></i>{{ L('P10 ~ P90 区间', 'P10–P90 band') }}</span>
       </div>

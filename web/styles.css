@@ -858,7 +858,6 @@ h2 small{font-weight:400;color:var(--tx3);font-size:12.5px;margin-left:8px;lette
 .sw-vivid .thm-sw{background:conic-gradient(from 210deg,#1b2a6e,#0458f9,#bd47ff,#58f1ee,#ff9d2e,#1b2a6e)}
 .sw-light .thm-sw{background:conic-gradient(from 210deg,#f4f6fa,#ffffff,#e6e9f0,#c8862a,#f4f6fa)}
 .sw-dark  .thm-sw{background:conic-gradient(from 210deg,#0f1320,#2a3145,#a98cf0,#6fa3e0,#0f1320)}
-.sw-glass .thm-sw{background:conic-gradient(from 210deg,#0a0e20,#7e5eff,#40beff,#ff6eb4,#46ebcd,#0a0e20)}
 
 /* ── 英文态排版微调 ───────────────────────────────────────────────────────────
    英文标签普遍比中文长得多（中文 2 个字 ≈ 英文 10 个字符），宽高都会变：
@@ -891,7 +890,7 @@ h2 small{font-weight:400;color:var(--tx3);font-size:12.5px;margin-left:8px;lette
 @media (max-width:900px){[data-lang="en"] .hp-toc{grid-template-columns:1fr}}
 
 /* ═══ 图表看板（抽卡分析页 · 吉凶分布 + 出金抽数预测）═══════════════════════════
-   两个看板共用一套外壳。色值全部走 token，四套主题自动跟随：
+   两个看板共用一套外壳。色值全部走 token，三套主题自动跟随：
      吉 = --gold · 平 = --cyan · 凶 = --red · 模型 = --purple · 实际 = --cyan
    红在这里是「不利」，与股市红涨绿跌无关 —— 这是黄历吉凶，不是行情。 */
 .dsh-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:12px;margin-bottom:16px}
@@ -1010,12 +1009,22 @@ h2 small{font-weight:400;color:var(--tx3);font-size:12.5px;margin-left:8px;lette
 .dsh-svg path.ln-pred{stroke:var(--purple);stroke-width:1.6;stroke-dasharray:6 4}
 .dsh-svg path.band{fill:var(--purple);fill-opacity:.13;stroke:none}
 .dsh-svg circle.dot{fill:var(--tx2);opacity:.65}
+.dsh-svg .dot-point{cursor:help;outline:none}
+.dsh-svg .dot-point .dot-hit{fill:transparent}
+.dsh-svg .dot-point:hover .dot,.dsh-svg .dot-point:focus .dot{opacity:1;stroke:var(--purple);stroke-width:1.5}
+.dsh-svg .dot-point:focus-visible .dot-hit{stroke:var(--purple);stroke-width:1;stroke-dasharray:2 2}
+.dsh-svg .dot-tip{pointer-events:none}
+.dsh-svg .dot-tip-bg{fill:var(--bg);stroke:var(--line);stroke-width:1}
+.dsh-svg text.dot-tip-main{fill:var(--tx);font-size:12px;font-weight:600}
+.dsh-svg text.dot-tip-sub{fill:var(--tx2);font-size:11px}
+.dsh-axis-note{margin:13px 0 2px;font-size:12px;color:var(--tx3)}
 
 .dsh-legend{display:flex;flex-wrap:wrap;gap:6px 20px;margin:11px 3px 0;font-size:12px;color:var(--tx3)}
 .dsh-legend i{display:inline-block;width:15px;height:2.5px;border-radius:2px;vertical-align:middle;
   margin-right:6px;background:var(--tx3)}
 .dsh-legend i.sw-model{background:var(--purple)}
 .dsh-legend i.sw-emp{background:var(--cyan)}
+.dsh-legend i.sw-dot{width:9px;height:9px;border-radius:50%;background:var(--tx2);opacity:.65}
 .dsh-legend i.sw-cum{background:var(--gold)}
 .dsh-legend i.sw-band{height:10px;border-radius:3px;background:var(--purple);opacity:.28}
 
@@ -1050,166 +1059,3 @@ h2 small{font-weight:400;color:var(--tx3);font-size:12.5px;margin-left:8px;lette
 /* 英文态的卡片标题长得多（"Inauspicious hours" vs「凶时」），下限放宽避免折成三行 */
 [data-lang="en"] .dsh-cards{grid-template-columns:repeat(auto-fit,minmax(186px,1fr))}
 [data-lang="en"] .dsh-cards-p{grid-template-columns:repeat(auto-fit,minmax(268px,1fr))}
-
-/* ── 卡池节奏（.bp- 前缀全域隔离）────────────────────────────────────────────
-   配色一律走 theme.css 的语义 token，不写死色值。
-   ⚠️ 「抽数分布」与「五星分布」两根条**刻意用中性色**（灰 / 紫），三个阶段的颜色**完全一致** ——
-      页面要回答的是「你抽在哪、金出在哪」，用金色或红绿去区分阶段会暗示「某个阶段更容易出金」，
-      而那正是本页要否认的说法。 */
-.bp .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:15px 17px;margin-bottom:13px}
-.bp .cardhead{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}
-.bp .cardhead .ct{font-size:14.5px;font-weight:500}
-.bp .cardhead .cs{font-size:12px;color:var(--tx3)}
-.bp-lead{font-size:14.5px;line-height:1.8;margin:0 0 10px}
-.bp-lead b{color:var(--tx);font-weight:500}
-.bp-cov{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:8px}
-.bp-chip{font-size:12px;color:var(--tx2);background:var(--sunk);border:1px solid var(--line2);border-radius:8px;padding:3px 9px}
-.bp-chip b{color:var(--tx)}
-.bp-note{font-size:12px;color:var(--tx3);line-height:1.75;margin-top:9px}
-.bp-note b{color:var(--tx2)}
-.bp-empty{font-size:13px;color:var(--tx3);line-height:1.85;margin:2px 0 0}
-
-.bp-filters{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}
-.bp-fl{font-size:12px;color:var(--tx4);white-space:nowrap}
-.bp-tab{font:inherit;font-size:12.5px;padding:3px 11px;border-radius:8px;border:1px solid var(--line);
-  background:var(--card2);color:var(--tx2);cursor:pointer;transition:background .15s,border-color .15s}
-.bp-tab:hover{border-color:var(--sel-line)}
-.bp-tab.on{background:var(--sel-bg);border-color:var(--sel-strong);color:var(--tx)}
-.bp-src{margin-left:auto;font-size:11.5px;color:var(--tx4)}
-.bp-sel{font:inherit;font-size:12.5px;padding:3px 7px;border-radius:8px;border:1px solid var(--line);
-  background:var(--card2);color:var(--tx2)}
-.bp-ck{font-size:12.5px;color:var(--tx2);display:inline-flex;align-items:center;gap:5px;cursor:pointer}
-.bp-cnt{font-size:11.5px;color:var(--tx4);margin-left:auto;font-variant-numeric:tabular-nums}
-
-/* 总体对照：三列等宽，列内两根条用同一套中性配色 */
-.bp-cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px}
-.bp-col{background:var(--card2);border:1px solid var(--line);border-radius:11px;padding:11px 12px}
-.bp-col-h{font-size:13.5px;font-weight:500;display:flex;flex-direction:column;gap:2px;margin-bottom:10px}
-.bp-col-s{font-size:11px;color:var(--tx4);font-weight:400}
-.bp-metric{margin-bottom:9px}
-.bp-m-l{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--tx2);margin-bottom:4px}
-.bp-m-l b{color:var(--tx);font-variant-numeric:tabular-nums}
-.bp-track{height:8px;border-radius:5px;background:var(--sunk);border:1px solid var(--line2);overflow:hidden}
-.bp-fill{display:block;height:100%;background:var(--tx3);transition:width .25s}
-.bp-fill.g-early,.bp-fill.g-mid,.bp-fill.g-late{background:var(--purple)}
-.bp-m-v{font-size:11.5px;color:var(--tx3);margin-top:3px;font-variant-numeric:tabular-nums}
-.bp-m-foot{font-size:12px;color:var(--tx2);border-top:1px dashed var(--dash);padding-top:7px}
-.bp-m-foot b{color:var(--tx);font-variant-numeric:tabular-nums}
-
-/* 逐卡池时间轴 */
-.bp-rows{display:flex;flex-direction:column;gap:15px}
-.bp-row{border-top:1px solid var(--line2);padding-top:12px}
-.bp-row:first-child{border-top:0;padding-top:0}
-.bp-r-head{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline}
-.bp-r-name{font-size:13.5px;font-weight:500}
-.bp-r-ti{font-weight:400;color:var(--tx3)}
-.bp-badge{font-size:10.5px;padding:1px 6px;border-radius:6px;background:var(--ok-bg);color:var(--ok-tx);margin-left:5px;white-space:nowrap}
-.bp-badge.warn{background:var(--warn-bg);color:var(--warn-tx)}
-.bp-r-meta{font-size:11.5px;color:var(--tx3);display:flex;gap:9px;flex-wrap:wrap;align-items:baseline}
-.bp-r-meta b{color:var(--tx2)}
-.bp-r-ph{color:var(--tx2);font-variant-numeric:tabular-nums}
-.bp-r-warn{color:var(--warn-tx)}
-.bp-r-src{color:var(--purple);border-bottom:1px dashed var(--sel-strong)}
-.bp-r-more{font:inherit;font-size:11.5px;color:var(--purple);background:none;border:0;padding:0;cursor:pointer;
-  border-bottom:1px dashed var(--sel-strong)}
-.bp-ups{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--tx3);margin:6px 0 7px}
-.bp-bar{position:relative;height:22px;border-radius:6px;background:var(--sunk);border:1px solid var(--line2);
-  display:flex;overflow:visible}
-.bp-seg{flex:1 1 0;height:100%}
-.bp-s1{border-radius:5px 0 0 5px}
-.bp-s2{border-left:1px dashed var(--dash);border-right:1px dashed var(--dash);background:var(--card2)}
-.bp-s3{border-radius:0 5px 5px 0}
-.bp-dot{position:absolute;top:50%;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;
-  background:var(--gold);border:1.5px solid var(--card);box-shadow:var(--sh-hair);color:var(--on-gold);
-  font-size:8.5px;line-height:1;display:flex;align-items:center;justify-content:center;font-weight:500}
-.bp-dot.off{background:var(--tx4);border-color:var(--card)}
-.bp-axis{display:flex;justify-content:space-between;font-size:10.5px;color:var(--tx4);margin-top:3px}
-.bp-days{display:flex;gap:3px;align-items:flex-end;margin-top:10px;padding-top:9px;
-  border-top:1px dashed var(--dash);overflow-x:auto;-webkit-overflow-scrolling:touch;min-width:0}
-.bp-day{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:30px;flex:0 0 auto}
-.bp-day i{display:block;width:9px;background:var(--tx4);border-radius:2px}
-.bp-day em{font-style:normal;font-size:9.5px;color:var(--tx4);white-space:nowrap}
-
-/* 明细表 / 待核实表：表格自己横向滚动，整页不产生横向溢出 */
-.bp-tblwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;min-width:0}
-.bp-tbl{width:100%;min-width:680px}
-.bp-sub{color:var(--tx3);font-size:11.5px}
-.bp-none{color:var(--tx4);text-align:center;padding:14px 0}
-/* 阶段徽章三档同色：不靠颜色区分「哪个阶段更欧」 */
-.pill.pp-early,.pill.pp-mid,.pill.pp-late{background:var(--sunk);color:var(--tx2)}
-/* 卡池活动名（内容层，见 tools/verify-i18n.js 白名单）不参与双语切换，只做轻微样式区分 */
-.bp-cn{color:var(--tx3)}
-/* ⚠️ 圆点 / 浮层也挂 .bp-cn（浮层里是角色名，同属内容层），但它们的字色要自己说了算 ——
-   所以这里用更高特异性把它们从上面那条里捞出来，别被 --tx3 抹平对比度。 */
-.bp-bar .bp-cn{color:inherit}
-.bp-tip.bp-cn{color:var(--tx)}
-
-/* 覆盖不足时改口径的那句（需求 §5A）：用 warn 色把「不能推广」顶出来 */
-.bp-lead-warn{font-size:13px;color:var(--warn-tx);background:var(--warn-bg);
-  border:1px solid var(--warn-line);border-radius:9px;padding:8px 12px}
-.bp-lead-warn b{color:var(--warn-tx)}
-
-/* ── 时间轴上的五星圆点 ────────────────────────────────────────────────────────
-   做成 <button> 而不是 <i>：键盘 Tab 能走到、触摸点一下能选中 —— 悬停/聚焦共用同一个浮层。
-   ⚠️ 浮层位置按侧别分三档（默认居中 / .l 靠左 / .r 靠右）。若一律居中，最右侧那个点的
-      浮层会顶出容器 ~100px，375px 视口下会把整页撑出横向滚动条。 */
-.bp-dot{padding:0;font:inherit;cursor:pointer;appearance:none}
-.bp-dot:focus-visible{outline:2px solid var(--purple);outline-offset:2px}
-.bp-dot:hover,.bp-dot:focus{z-index:8}
-.bp-dot.unc{background:var(--sunk);border-color:var(--gold);box-shadow:none;color:var(--gold)}
-.bp-tip{position:absolute;bottom:150%;left:50%;transform:translateX(-50%);
-  display:none;min-width:120px;max-width:220px;white-space:pre-line;text-align:left;
-  background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 9px;
-  font-size:11px;line-height:1.6;font-weight:400;color:var(--tx);box-shadow:var(--sh2);
-  pointer-events:none;z-index:9}
-.bp-dot:hover .bp-tip,.bp-dot:focus .bp-tip{display:block}
-.bp-dot.l .bp-tip{left:0;transform:none}
-.bp-dot.r .bp-tip{left:auto;right:0;transform:none}
-
-/* 进行中卡池的「此刻」标记 */
-.bp-now{position:absolute;top:-4px;bottom:-4px;width:2px;margin-left:-1px;border-radius:2px;
-  background:var(--tx2);box-shadow:var(--sh-hair)}
-.bp-now::after{content:'';position:absolute;left:-3px;top:-3px;border:4px solid transparent;
-  border-top-color:var(--tx2)}
-
-/* 图例（时间轴的圆点含义 / 进行中池的五星清单） */
-.bp-legend{display:flex;flex-wrap:wrap;gap:5px 16px;font-size:11.5px;color:var(--tx3);margin-top:6px}
-.bp-legend span{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
-.bp-di{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--tx4);flex:0 0 9px}
-.bp-di.up{background:var(--gold)}
-.bp-di.off{background:var(--tx4)}
-.bp-di.unc{background:var(--sunk);border:1.5px solid var(--gold)}
-
-/* 数据来源与时间口径（可折叠） */
-.bp-det>summary{cursor:pointer;list-style:none;font-size:13px;color:var(--purple);
-  border-bottom:1px dashed var(--sel-strong);display:inline-block}
-.bp-det>summary::-webkit-details-marker{display:none}
-.bp-det>summary::after{content:'\25BE';color:var(--tx3);font-size:11px;margin-left:6px;display:inline-block}
-.bp-det[open]>summary::after{transform:rotate(180deg)}
-.bp-det>summary:hover{color:var(--purple-d)}
-.bp-srcbox{margin-top:11px;display:flex;flex-direction:column;gap:6px}
-.bp-srcrow{display:flex;gap:10px;font-size:11.5px;color:var(--tx2);line-height:1.7;align-items:baseline}
-.bp-srck{flex:0 0 96px;color:var(--tx4);white-space:nowrap}
-.bp-srcrow a{color:var(--purple);word-break:break-all}
-/* 来源类型（official / community-aggregate）：数据文件里的机器标识，原样展示不翻译 */
-.bp-srcrow .bp-styp{color:var(--tx4);white-space:nowrap}
-
-@media (max-width:860px){
-  .bp-cols{grid-template-columns:1fr}
-  .bp-src,.bp-cnt{margin-left:0}
-  .bp-tbl{min-width:600px}
-  .bp-r-head{flex-direction:column;gap:4px}
-  .bp-srcrow{flex-direction:column;gap:2px}
-  .bp-srck{flex:0 0 auto}
-}
-@media (prefers-reduced-motion:reduce){
-  .bp-fill,.bp-tab{transition:none}
-}
-/* 英文态：说明句更长，允许这些容器更早折行 */
-[data-lang="en"] .bp-col-h{font-size:12.5px}
-[data-lang="en"] .bp-sel{max-width:210px}
-[data-lang="en"] .bp-srck{flex-basis:126px}
-[data-lang="en"] .bp-dot{width:14px;height:14px;margin:-7px 0 0 -7px}
-
-/* 帮助页章节末尾的操作行（如第 10 章底部跳去「卡池节奏」） */
-.hp-actions{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap}

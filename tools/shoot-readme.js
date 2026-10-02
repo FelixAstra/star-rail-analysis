@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 // ─────────────────────────────────────────────────────────────────────────────
-// 崩铁抽卡分析平台 · 重拍 README 配图（4 张）
+// Star Rail Warp Analyzer · 重拍 README 配图（4 张）
 //
 //   analysis.png    1200×750   抽卡分析页：七张总貌卡 + 当期卡池识别
 //   divination.png  1200×750   八卦占卜页：卡池倒计时 + 罗盘 + 六爻起卦面板
 //   roles.png       1200×750   角色管理页：五星角色 × 专属光锥配对卡
-//   themes.png      1200×816   同一页在四套主题下的样子（2×2 拼图）
+//   themes.png      1200×816   同一页在三套主题下的样子（2 列拼图，前两格一行、第三格横跨居中）
 //
 // 用法：
 //   # 1) 铺演示数据 + 起服务（**别拿真实账号数据拍**，会把抽卡史拍进公开仓库）
@@ -18,7 +18,7 @@
 //
 // ⚠️ 截的是**视口**而不是元素：README 里按 880px 宽展示，固定一个「取景刚好」的
 //    视口尺寸即可，不必跟着页面高度走（元素裁剪在长页面上很难稳定）。
-// ⚠️ themes 拼图用 Data URI 把四张图内嵌进一个本地 HTML —— 免得为了拼图去依赖
+// ⚠️ themes 拼图用 Data URI 把三张图内嵌进一个本地 HTML —— 免得为了拼图去依赖
 //    ImageMagick 之类的本机工具（零依赖是这个项目的一贯约定）。
 // ⚠️ 调试端口必须随机：异常退出没杀干净的上一轮 Chrome 会让 /json/list 连到旧浏览器，
 //    症状是 navigate 成功但页面永远空白。
@@ -41,8 +41,8 @@ const want = f => !ONLY || ONLY.indexOf(f) >= 0;
 const CHROME = process.env.CHROME_BIN ||
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 
-// 四套主题：key 与 web/app.js 的 THEMES 一致（配色定义在 web/theme.css）
-const THEMES = [['vivid', 'Vivid (default)'], ['light', 'Light'], ['dark', 'Dark'], ['glass', 'Glass']];
+// 三套主题：key 与 web/app.js 的 THEMES 一致（配色定义在 web/theme.css）
+const THEMES = [['vivid', 'Vivid (default)'], ['light', 'Light'], ['dark', 'Dark']];
 const W = 1200, H = 750;        // 单页取景
 const WH = 816;                 // 拼图总高（2 行 × 408）
 
@@ -179,10 +179,10 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   await setPref('sr.theme', 'vivid', 'data-theme');   // README 的主图用默认主题
 
   await shotPage(0, 'analysis.png', { w: 1200, h: 900 });        // 900 高：页头 + 七张总貌卡刚好一屏
-  await shotPage(2, 'roles.png', { sel: '.pgrid' });             // 滚过「怎么读这两张图」的说明块
-  await shotPage(3, 'divination.png', {});
+  await shotPage(1, 'roles.png', { sel: '.pgrid' });             // 滚过「怎么读这两张图」的说明块
+  await shotPage(2, 'divination.png', {});
 
-  // ── 四主题拼图：2×2，每格 600×408，左上角叠主题名 ──────────────────────────
+  // ── 三主题拼图：2 列，前两格一行、第三格横跨居中 ────────────────────────────
   if (!want('themes.png')) {
     console.log('  · 跳过 themes.png（--only 未选中）');
   } else {
@@ -201,11 +201,13 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     + '.g{display:grid;grid-template-columns:600px 600px;grid-auto-rows:408px}'
     + '.c{position:relative;width:600px;height:408px;overflow:hidden;outline:1px solid rgba(255,255,255,.06)}'
     + '.c img{width:600px;height:408px;display:block}'
+    + '.c.last{grid-column:1/3;justify-self:center}'
     + '.c span{position:absolute;left:0;top:0;padding:7px 13px;font:650 15px/1.2 '
     + '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#fff;'
     + 'background:rgba(5,9,20,.74);letter-spacing:.2px}'
     + '</style><div class="g">'
-    + tiles.map(t => '<div class="c"><img src="data:image/png;base64,' + t.b64 + '"><span>' + esc(t.label) + '</span></div>').join('')
+    + tiles.map((t, i) => '<div class="c' + (i === tiles.length - 1 && tiles.length % 2 ? ' last' : '') + '">'
+        + '<img src="data:image/png;base64,' + t.b64 + '"><span>' + esc(t.label) + '</span></div>').join('')
     + '</div>';
   const fig = path.join(PROF, 'themes.html');
   fs.writeFileSync(fig, html);

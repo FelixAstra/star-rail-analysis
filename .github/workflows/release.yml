@@ -1,8 +1,8 @@
 name: Release
 
 # 推一个 v* tag → 跑完检查 → 构建 zip → 挂到 GitHub Release。
-# 产物名固定为 star-rail-analysis.zip，所以 README 里可以用
-# releases/latest/download/star-rail-analysis.zip 这个永久链接。
+# 产物名固定为 star-rail-analyzer.zip，所以 README 里可以用
+# releases/latest/download/star-rail-analyzer.zip 这个永久链接。
 on:
   push:
     tags: ['v*']
@@ -31,14 +31,14 @@ jobs:
       - name: Divination engine assertions (offline, data-independent)
         run: node tools/verify-divination.js
 
-      - name: Boot smoke test (empty data, 8 endpoints)
+      - name: Boot smoke test (empty data, 9 endpoints)
         run: node tools/ci-smoke.js
 
       - name: Build release zip
-        run: node tools/make-release-zip.js dist/star-rail-analysis.zip
+        run: node tools/make-release-zip.js dist/star-rail-analyzer.zip
 
       - name: Create release and upload zip
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/star-rail-analysis.zip
+          files: dist/star-rail-analyzer.zip
           generate_release_notes: true

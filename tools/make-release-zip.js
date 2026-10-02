@@ -2,7 +2,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // 构建发布 zip（供 GitHub Release 使用，也可本地跑）
 //
-//   node tools/make-release-zip.js [输出路径]     # 默认 dist/star-rail-analysis.zip
+//   node tools/make-release-zip.js [输出路径]     # 默认 dist/star-rail-analyzer.zip
 //
 // 内容 = git HEAD 的全部跟踪文件（自动应用 .gitattributes 的行尾规则，
 // 也就是说 start.bat 在 zip 里是 CRLF）+ 一个空的 data/ 目录。
@@ -23,8 +23,8 @@ const { spawnSync } = require('child_process');
 const ROOT = path.resolve(__dirname, '..');
 const STAGED = process.argv.includes('--staged');
 const argPath = process.argv.slice(2).find(a => !a.startsWith('--'));
-const OUT = path.resolve(argPath || path.join(ROOT, 'dist', 'star-rail-analysis.zip'));
-const DIRNAME = 'star-rail-analysis';   // zip 解压后的顶层目录名（固定，方便引用）
+const OUT = path.resolve(argPath || path.join(ROOT, 'dist', 'star-rail-analyzer.zip'));
+const DIRNAME = 'star-rail-analyzer';   // zip 解压后的顶层目录名（固定，方便引用）
 
 function die(msg) { console.error('✗ ' + msg); process.exit(1); }
 function run(cmd, args, opts) {
@@ -72,7 +72,7 @@ try { fs.unlinkSync(tmpZip); } catch (e) {}
 
 // ── 汇报 ──
 const count = run('unzip', ['-l', OUT])
-  .split('\n').filter(l => / star-rail-analysis\//.test(l) && !/\/$/.test(l)).length;
+  .split('\n').filter(l => / star-rail-analyzer\//.test(l) && !/\/$/.test(l)).length;
 const size = fs.statSync(OUT).size;
 console.log('✔ ' + OUT);
 console.log('  ' + count + ' 个文件 · ' + (size / 1024 / 1024).toFixed(2) + ' MB · 顶层目录 ' + DIRNAME + '/');

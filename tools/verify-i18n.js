@@ -48,11 +48,10 @@ const BASE = `http://127.0.0.1:${PORT}`;
 // ── 要巡检的页面（顺序＝左侧导航 .navi 的下标）───────────────────────────────
 const PAGES = [
   { i: 0, key: 'analysis', zh: '抽卡分析', en: 'Warp Analysis' },
-  { i: 1, key: 'bannerphase', zh: '卡池节奏', en: 'Banner Rhythm' },
-  { i: 2, key: 'roles', zh: '角色管理', en: 'Characters' },
-  { i: 3, key: 'divination', zh: '八卦占卜', en: 'Divination' },
-  { i: 4, key: 'data', zh: '抓取与数据管理', en: 'Fetch & Data' },
-  { i: 5, key: 'help', zh: '解释说明', en: 'Guide' },
+  { i: 1, key: 'roles', zh: '角色管理', en: 'Characters' },
+  { i: 2, key: 'divination', zh: '八卦占卜', en: 'Divination' },
+  { i: 3, key: 'data', zh: '抓取与数据管理', en: 'Fetch & Data' },
+  { i: 4, key: 'help', zh: '解释说明', en: 'Guide' },
 ];
 
 // ── 内容层白名单（刻意保留的中文）───────────────────────────────────────────
@@ -85,10 +84,6 @@ const EXPECT = [
   // 分析页图表里的十二时辰：地支汉字是内容层本体（与卦名、黄历术语同口径），
   // 英译只在旁边补钟点范围，不替换它。数据表的时辰列 + 悬停浮层两处。
   /dsh-zhi|dsh-tip/,
-  // 卡池活动名（跃迁名，如「激浪跃金」「拓星启明」）：与卦辞/黄历同属内容层 ——
-  // 官方英文名没有可核实的来源，宁可在英文界面里保留中文，也不自己译一个可能错的。
-  // 只收在 .bp-cn 这一个区域类上，不是「什么都放行」。
-  /bp-cn/,
 ];
 
 // 哪些命中来自**属性层**（txt 带 "[title] " 之类前缀）—— 只用于把统计口径拆开显示，
@@ -219,7 +214,7 @@ async function main() {
     await step('reload', send('Page.reload', { ignoreCache: true }), 25000);
     for (let i = 0; i < 60; i++) {
       await sleep(250);
-      const ok = await ev(`document.readyState === 'complete' && document.querySelectorAll('.navi').length >= 6`);
+      const ok = await ev(`document.readyState === 'complete' && document.querySelectorAll('.navi').length >= 5`);
       if (ok) break;
     }
     await sleep(900);
